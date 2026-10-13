@@ -1,0 +1,41 @@
+-- scenario-1-db.sql — legacy scenario SQL, now superseded
+--
+-- The authoritative schema for DocuPulse lives in the migration module:
+--   backend/db/migrations/0001_init.sql  (corrected 7-table base DDL)
+--   backend/db/migrations/0002_seed.sql  (plans + roles seeds)
+--   backend/scripts/init-db.sh            (idempotent runner)
+--
+-- What changed vs this file:
+--   * FK directions corrected (child table holds the FK; no more
+--     "users.id REFERENCES organizations.id_user" inversions).
+--   * `seats` is the only membership table; `users` no longer carries
+--     an organization foreign key.
+--   * The misspelled organization-id column name from this file was
+--     corrected to `id_organization`.
+--   * `organizations.slug` widened VARCHAR(5) -> VARCHAR(16).
+--   * Quoted camelCase identifiers throughout.
+--   * `TIMESTAMPTZ` where the original used `TIMESTAMP`.
+--   * `ON DELETE NO ACTION` everywhere (revisit when invitations land).
+--
+-- Billing DDL kept here for the moment so it is not lost when this
+-- scenario file is reduced to a pointer. It belongs in the billing
+-- module, not in the core schema:
+--
+--   CREATE TABLE subscriptions (
+--       id BIGSERIAL PRIMARY KEY,
+--       id_organization BIGINT NOT NULL UNIQUE REFERENCES organizations(id),
+--         -- one active sub per org
+--       polar_subscription_id TEXT NOT NULL UNIQUE,
+--         -- webhook upsert key = idempotency
+--       status TEXT NOT NULL,
+--         -- active | past_due | canceled | revoked
+--       seat_count INTEGER NOT NULL,
+--       cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
+--       current_period_end TIMESTAMP,
+--       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+--   );
+--
+-- The core 7-table DDL above is the one actually deployed via db:init.
+-- This file is retained as a historical pointer; do not run it against
+-- a real database.
