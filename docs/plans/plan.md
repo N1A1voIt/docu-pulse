@@ -34,34 +34,34 @@ Tasks 1 ∥ 2 are parallel. Tasks 6–9 are parallel after 4+5. Nothing in Phase
 ## Task List
 
 ### Phase 1 — Foundation
-- [ ] Task 1: Dev environment & tooling
-- [ ] Task 2: `0001_init.sql` corrected DDL
-- [ ] Task 3: `init-db.sh` migration runner
-- [ ] Task 4: `0002_seed.sql` seeds
+- [x] Task 1: Dev environment & tooling
+- [x] Task 2: `0001_init.sql` corrected DDL
+- [x] Task 3: `init-db.sh` migration runner
+- [x] Task 4: `0002_seed.sql` seeds
 
 ### Checkpoint A (after Tasks 1–4)
-- [ ] `npm run db:init` twice, exits 0 both times
-- [ ] `psql` shows 7 tables, 2 plans, 3 roles
-- [ ] Review with human before proceeding
+- [x] `npm run db:init` twice, exits 0 both times
+- [x] `psql` shows 7 tables, 2 plans, 3 roles
+- [x] Review with human before proceeding
 
 ### Phase 2 — Verification suite
-- [ ] Task 5: Test harness (`tests/helpers/db.ts`)
-- [ ] Task 6: `structure.test.ts`
-- [ ] Task 7: `constraints.test.ts`
-- [ ] Task 8: `seeds.test.ts`
-- [ ] Task 9: `provisioning.test.ts`
+- [x] Task 5: Test harness (`tests/helpers/db.ts`)
+- [x] Task 6: `structure.test.ts`
+- [x] Task 7: `constraints.test.ts`
+- [x] Task 8: `seeds.test.ts`
+- [x] Task 9: `provisioning.test.ts`
 
 ### Checkpoint B (after Tasks 5–9)
-- [ ] `npm test` all green
-- [ ] `npm run typecheck` green
-- [ ] Unsetting `DATABASE_URL_TEST` makes the suite fail, not skip
+- [x] `npm test` all green
+- [x] `npm run typecheck` green
+- [x] Unsetting `DATABASE_URL_TEST` makes the suite fail, not skip
 
 ### Phase 3 — Closeout
-- [ ] Task 10: `scenario-1-db.sql` → pointer
+- [x] Task 10: `scenario-1-db.sql` → pointer
 
 ### Checkpoint C (after Task 10)
-- [ ] All spec success criteria verified (grep sweep, commands, diff)
-- [ ] Ready for review / module `schema` complete
+- [x] All spec success criteria verified (grep sweep, commands, diff)
+- [x] Ready for review / module `schema` complete
 
 ## Risks and Mitigations
 
