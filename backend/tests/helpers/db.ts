@@ -58,13 +58,18 @@ export async function resetSchema(): Promise<void> {
   try {
     await client.query("BEGIN")
     await client.query(`
-      DROP TABLE IF EXISTS "integrations"    CASCADE;
+      DROP SCHEMA IF EXISTS "auth" CASCADE;
+      DROP TABLE IF EXISTS "session"                CASCADE;
+      DROP TABLE IF EXISTS "account"                CASCADE;
+      DROP TABLE IF EXISTS "verification"           CASCADE;
+      DROP TABLE IF EXISTS "user"                   CASCADE;
+      DROP TABLE IF EXISTS "integrations"           CASCADE;
       DROP TABLE IF EXISTS "possible_integration_docu" CASCADE;
-      DROP TABLE IF EXISTS "seats"          CASCADE;
-      DROP TABLE IF EXISTS "organizations"  CASCADE;
-      DROP TABLE IF EXISTS "users"          CASCADE;
-      DROP TABLE IF EXISTS "role"           CASCADE;
-      DROP TABLE IF EXISTS "plans"          CASCADE;
+      DROP TABLE IF EXISTS "seats"                  CASCADE;
+      DROP TABLE IF EXISTS "organizations"          CASCADE;
+      DROP TABLE IF EXISTS "users"                  CASCADE;
+      DROP TABLE IF EXISTS "role"                   CASCADE;
+      DROP TABLE IF EXISTS "plans"                  CASCADE;
     `)
     await client.query("COMMIT")
   } catch (e) {
