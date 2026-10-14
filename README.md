@@ -1,4 +1,4 @@
-# DocuPulse 
+# Fook 
 
 **Continuous, Branch-Aware Technical Documentation Powered by AI**
 
