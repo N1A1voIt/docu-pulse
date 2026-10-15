@@ -42,7 +42,13 @@ interface SpacesContextValue {
   error: string | null;
   spaces: Space[];
   user: SessionUser | null;
+  /** Re-runs the session + spaces load, surfacing the existing loading state. */
   reload: () => void;
+  /**
+   * Creates a team space, refreshes the list so the new space is available to
+   * the switcher, and resolves with the new space id. Throws on failure.
+   */
+  createSpace: (name: string) => Promise<{ id: string }>;
 }
 
 const SpacesContext = createContext<SpacesContextValue | null>(null);
@@ -59,6 +65,14 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  const fetchSpaces = useCallback(async (): Promise<Space[]> => {
+    const res = await apiFetch("/api/organizations");
+    if (!res.ok) {
+      throw new Error(`Failed to load spaces (${res.status})`);
+    }
+    return (await res.json()) as Space[];
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -74,12 +88,9 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         }
         setUser(data.user);
 
-        const res = await apiFetch("/api/organizations");
+        const list = await fetchSpaces();
         if (cancelled) return;
-        if (!res.ok) {
-          throw new Error(`Failed to load spaces (${res.status})`);
-        }
-        setSpaces((await res.json()) as Space[]);
+        setSpaces(list);
         setError(null);
         setStatus("ok");
       } catch (err) {
@@ -92,7 +103,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, fetchSpaces]);
 
   const reload = useCallback(() => {
     setError(null);
@@ -100,9 +111,37 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     setAttempt((n) => n + 1);
   }, []);
 
+  const createSpace = useCallback(
+    async (name: string): Promise<{ id: string }> => {
+      const res = await apiFetch("/api/organizations", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.id) {
+        throw new Error(
+          body.message ?? body.error ?? "Couldn’t create the team space",
+        );
+      }
+      // Refresh the list so the new space is present in the switcher before we
+      // navigate into it — the provider stays the one source of truth.
+      try {
+        setSpaces(await fetchSpaces());
+      } catch {
+        // Navigation still proceeds; the next load picks the space up.
+      }
+      return { id: body.id };
+    },
+    [fetchSpaces],
+  );
+
   const value = useMemo<SpacesContextValue>(
-    () => ({ status, error, spaces, user, reload }),
-    [status, error, spaces, user, reload],
+    () => ({ status, error, spaces, user, reload, createSpace }),
+    [status, error, spaces, user, reload, createSpace],
   );
 
   return <SpacesContext.Provider value={value}>{children}</SpacesContext.Provider>;
