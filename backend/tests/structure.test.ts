@@ -9,6 +9,7 @@ const EXPECTED_TABLES = [
   "seats",
   "possible_integration_docu",
   "integrations",
+  "invitations",
 ];
 
 describe("schema structure", () => {
@@ -16,7 +17,7 @@ describe("schema structure", () => {
     await resetSchema();
   });
 
-  it("creates exactly the 7 base tables", async () => {
+  it("creates exactly the 8 base tables", async () => {
     const { rows } = await pool.query<{ table_name: string }>(
       `SELECT table_name
          FROM information_schema.tables

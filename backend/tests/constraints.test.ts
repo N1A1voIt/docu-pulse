@@ -45,6 +45,10 @@ describe("schema constraints", () => {
       "integrations.id_pi -> possible_integration_docu.id_pi",
       "integrations.id_user_who_clicked_connect -> users.id",
       "integrations.id_organization -> organizations.id_organization",
+      "invitations.id_organization -> organizations.id_organization",
+      "invitations.id_inviter_user -> users.id",
+      "invitations.id_role -> role.id_role",
+      "invitations.accepted_user_id -> users.id",
     ];
 
     for (const e of expected) {
