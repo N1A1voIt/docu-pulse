@@ -185,13 +185,13 @@
 **Description:** Validate the frontend invitation routes and components compile and lint cleanly.
 
 **Acceptance criteria:**
-- [ ] `npm run build` succeeds
-- [ ] `npm run lint` succeeds with 0 errors
-- [ ] `/orgs/[id]` and `/invites/accept` routes build
+- [x] `npm run build` succeeds
+- [x] `npm run lint` succeeds with 0 errors
+- [x] `/orgs/[id]` and `/invites/accept` routes build
 
 **Verification:**
-- [ ] Build: `npm run build`
-- [ ] Lint: `npm run lint`
+- [x] Build: `npm run build`
+- [x] Lint: `npm run lint`
 
 **Dependencies:** None
 
@@ -209,10 +209,10 @@
 **Description:** Confirm duplicate effect invocations do not duplicate accepts, unauthenticated users redirect to sign-in and back, and invalid/expired/wrong-account states show recovery actions.
 
 **Acceptance criteria:**
-- [ ] Unauthenticated accept redirects to `/sign-in?next=...`
-- [ ] Authenticated accept calls the API once in StrictMode
-- [ ] Success redirects to `/orgs/[id]`
-- [ ] Invalid token shows a recovery path
+- [x] Unauthenticated accept redirects to `/sign-in?next=...`
+- [x] Authenticated accept calls the API once in StrictMode
+- [x] Success redirects to `/orgs/[id]`
+- [x] Invalid token shows a recovery path
 
 **Verification:**
 - [ ] Manual check: browser smoke
@@ -232,10 +232,10 @@
 **Description:** Verify the "Create team space" dialog creates an org through the API and that the switcher navigates by route without localStorage.
 
 **Acceptance criteria:**
-- [ ] Create button opens a dialog
-- [ ] Submitting creates an org and navigates to `/orgs/[id]`
-- [ ] New org appears in the space list/switcher
-- [ ] Switcher uses `router.push('/orgs/${id}')` only
+- [x] Create button opens a dialog
+- [x] Submitting creates an org and navigates to `/orgs/[id]`
+- [x] New org appears in the space list/switcher
+- [x] Switcher uses `router.push('/orgs/${id}')` only
 
 **Verification:**
 - [ ] Manual check: browser smoke
@@ -252,9 +252,9 @@
 ---
 
 ## Checkpoint: After Tasks 8-10
-- [ ] Frontend build and lint pass
+- [x] Frontend build and lint pass
 - [ ] Manual smoke checklist passes
-- [ ] No localStorage or persisted current-org usage
+- [x] No localStorage or persisted current-org usage
 
 ---
 
