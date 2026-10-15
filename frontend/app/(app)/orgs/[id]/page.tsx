@@ -1,11 +1,12 @@
 "use client";
 
-import { useActiveSpace } from "@/lib/spaces";
+import { roleLabel, useActiveSpace } from "@/lib/spaces";
+import { SpaceFact } from "@/components/shell/space-fact";
 
 /**
- * The space Overview. Members and Invites are their own routes now; this page
- * is the landing for a space and reads its identity from the single
- * `/api/organizations` response via `useActiveSpace` (never a second fetch).
+ * The space Overview — an at-a-glance view of the space you are in. Identity,
+ * plan and the caller's role all come from the single `/api/organizations`
+ * response via `useActiveSpace` (never a second fetch).
  */
 export default function OverviewPage() {
   const { activeSpace } = useActiveSpace();
@@ -20,6 +21,11 @@ export default function OverviewPage() {
           {activeSpace.slug} · {activeSpace.isPersonal ? "Personal" : "Team"}
         </p>
       </div>
+
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <SpaceFact label="Plan" value={activeSpace.planName ?? "Unknown"} />
+        <SpaceFact label="Your role" value={roleLabel(activeSpace.role)} />
+      </dl>
     </main>
   );
 }

@@ -134,6 +134,18 @@ export function documentsUnlockedFor(space: Space | null): boolean {
   return space !== null && !space.isPersonal && space.planName === "Org";
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Member",
+};
+
+/** Human-readable label for a `role.slug`; falls back to the raw slug, or "—" when absent. */
+export function roleLabel(role: string | null): string {
+  if (!role) return "—";
+  return ROLE_LABELS[role] ?? role;
+}
+
 const SPACE_ROUTE = /^\/orgs\/([^/]+)/;
 
 /**
