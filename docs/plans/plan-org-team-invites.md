@@ -23,14 +23,14 @@ Most of the backend/frontend skeleton already exists in the working tree (migrat
 
 ### Phase 1: Backend Hardening
 
-- [ ] Task 1: Centralize email configuration
-- [ ] Task 2: Harden accept against concurrent calls
-- [ ] Task 3: Verify DB init idempotency (migrations 0001-0004)
+- [x] Task 1: Centralize email configuration
+- [x] Task 2: Harden accept against concurrent calls
+- [x] Task 3: Verify DB init idempotency (migrations 0001-0004)
 
 ### Checkpoint: Backend Hardening
-- [ ] Backend typecheck passes
-- [ ] `npm run db:init` succeeds twice
-- [ ] No plaintext token or token hash leaks in service responses
+- [x] Backend typecheck passes
+- [x] `npm run db:init` succeeds twice
+- [x] No plaintext token or token hash leaks in service responses
 
 ### Phase 2: Backend Tests
 

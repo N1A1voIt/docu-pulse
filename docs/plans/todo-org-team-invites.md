@@ -7,14 +7,14 @@
 **Description:** Make email env reads (Resend key, from address, app URL) go through the existing centralized config or at least be consistently sourced, so Resend sender failures and local no-op behavior are predictable.
 
 **Acceptance criteria:**
-- [ ] `createEmailSender()` continues to choose Resend when `RESEND_API_KEY` is present and non-empty
-- [ ] No-op sender is selected when the key is missing
-- [ ] `APP_URL` / `EMAIL_FROM` use the established env access pattern
-- [ ] Frontend accept URLs are built from `env.appUrl`
+- [x] `createEmailSender()` continues to choose Resend when `RESEND_API_KEY` is present and non-empty
+- [x] No-op sender is selected when the key is missing
+- [x] `APP_URL` / `EMAIL_FROM` use the established env access pattern
+- [x] Frontend accept URLs are built from `env.appUrl`
 
 **Verification:**
-- [ ] Tests pass: backend `npm test`
-- [ ] Typecheck passes: backend `npm run typecheck`
+- [x] Tests pass: backend `npm test`
+- [x] Typecheck passes: backend `npm run typecheck`
 
 **Dependencies:** None
 
@@ -32,14 +32,14 @@
 **Description:** Ensure concurrent/duplicate accept calls remain idempotent and never create more than one seat, including row-level status handling for expired/revoked/accepted invites.
 
 **Acceptance criteria:**
-- [ ] Accept locks or safely handles the invitation row before insert/update
-- [ ] Duplicate accept calls do not create duplicate seats
-- [ ] Revoked/expired invites never create seats
-- [ ] `accepted_at` is set once
+- [x] Accept locks or safely handles the invitation row before insert/update
+- [x] Duplicate accept calls do not create duplicate seats
+- [x] Revoked/expired invites never create seats
+- [x] `accepted_at` is set once
 
 **Verification:**
-- [ ] Tests pass: backend `npm test`
-- [ ] Typecheck passes: backend `npm run typecheck`
+- [x] Tests pass: backend `npm test`
+- [x] Typecheck passes: backend `npm run typecheck`
 
 **Dependencies:** Task 1
 
@@ -55,14 +55,14 @@
 **Description:** Run `npm run db:init` twice against Postgres 16 and confirm it exits 0 each time, covering the invitations table, indexes, and FKs.
 
 **Acceptance criteria:**
-- [ ] First `npm run db:init` exits 0
-- [ ] Second `npm run db:init` exits 0
-- [ ] `invitations` table and all three indexes exist
-- [ ] All four invitations FKs exist
+- [x] First `npm run db:init` exits 0
+- [x] Second `npm run db:init` exits 0
+- [x] `invitations` table and all three indexes exist
+- [x] All four invitations FKs exist
 
 **Verification:**
-- [ ] Manual check: `npm run db:init && npm run db:init`
-- [ ] Manual query: inspect `information_schema.tables/indexes`
+- [x] Manual check: `npm run db:init && npm run db:init`
+- [x] Manual query: inspect `information_schema.tables/indexes`
 
 **Dependencies:** None
 
@@ -76,9 +76,9 @@
 ---
 
 ## Checkpoint: After Tasks 1-3
-- [ ] Backend typecheck passes
-- [ ] DB init runs twice cleanly
-- [ ] No token hash leaks from service functions
+- [x] Backend typecheck passes
+- [x] DB init runs twice cleanly
+- [x] No token hash leaks from service functions
 
 ---
 
