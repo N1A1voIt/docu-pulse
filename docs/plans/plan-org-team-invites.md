@@ -46,9 +46,9 @@ Most of the backend/frontend skeleton already exists in the working tree (migrat
 
 ### Phase 3: Frontend Verification
 
-- [ ] Task 8: Run frontend build and lint gate
-- [ ] Task 9: Verify StrictMode-safe accept flow and error recovery
-- [ ] Task 10: Verify create-team-space and space switcher UX
+- [x] Task 8: Run frontend build and lint gate
+- [x] Task 9: Verify StrictMode-safe accept flow and error recovery
+- [x] Task 10: Verify create-team-space and space switcher UX
 
 ### Checkpoint: Frontend
 - [ ] `npm run build` succeeds with 0 TS errors
