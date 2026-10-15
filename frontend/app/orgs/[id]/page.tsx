@@ -26,6 +26,7 @@ function OrgPageContent() {
   const [invites, setInvites] = useState<InviteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
 
   const currentOrg = orgs.find((o) => o.id === id);
@@ -80,8 +81,17 @@ function OrgPageContent() {
   }
 
   async function handleRevoke(inviteId: string) {
-    await apiFetch(`/api/organizations/${id}/invites/${inviteId}`, { method: "DELETE" });
-    await load();
+    setRevokeError(null);
+    try {
+      const res = await apiFetch(`/api/organizations/${id}/invites/${inviteId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? body?.error ?? "Failed to revoke invite");
+      }
+      await load();
+    } catch (e) {
+      setRevokeError(e instanceof Error ? e.message : "Failed to revoke invite");
+    }
   }
 
   if (loading) {
@@ -133,6 +143,11 @@ function OrgPageContent() {
           <h2 className="text-xl font-medium">Invites</h2>
           {canManage && <Button onClick={() => setShowInvite(true)}>Invite member</Button>}
         </div>
+        {revokeError && (
+          <Alert variant="destructive">
+            <AlertDescription>{revokeError}</AlertDescription>
+          </Alert>
+        )}
         {invites.length === 0 ? (
           <p className="text-sm text-muted-foreground">No invites yet.</p>
         ) : (
