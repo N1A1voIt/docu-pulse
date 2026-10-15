@@ -179,11 +179,45 @@ Browser smoke is deferred to Task 14 (no E2E harness); items above are verified 
 
 ### Phase 4: Palette
 
-- [ ] Task 12: ⌘K command palette (Home, every space, active space's sections, create-team)
+- [x] Task 12: ⌘K command palette (Home, every space, active space's sections, create-team)
 
 ### Checkpoint: Palette
 - [ ] ⌘K opens, navigates a space / member / settings, Esc closes, focus restores
-- [ ] Palette reads already-loaded data only (no backend search, no documents)
+- [x] Palette reads already-loaded data only (no backend search, no documents)
+
+#### Phase 4 implementation notes (2026-10-16)
+
+1. **No backend change was required.** The palette reads only `useSpaces()` and
+   `useActiveSpace()` — Home, the user's spaces, the active space's sections and the
+   create-team action. The `/api/organizations` contract is untouched
+   (`api-and-interface-design`: negotiate nothing that isn't needed). `npm run typecheck`
+   is the backend gate this phase; the DB-backed suite was not run (no backend code changed).
+2. **`@base-ui/react/autocomplete` + `dialog`, per the plan.** `Autocomplete.Root inline open`
+   plus a `Dialog` give combobox semantics (`role="combobox"`/`aria-activedescendant` on the
+   input, `role="option"` rows), focus trap, Esc-to-close and focus restore without
+   hand-rolled ARIA. Navigation rows render as real `<Link>`s, so Enter and click both
+   navigate and the palette can never dead-end.
+3. **Go/no-go: kept.** With the shell's spaces plus the active space's four sections plus
+   create-team, the palette navigates more than it decorates (spec assumption validated).
+   It stays in scope for Task 13–15 rather than being cut.
+4. **Focus restore uses the Base UI default, not an explicit `finalFocus` ref (review fix).**
+   The `FloatingFocusManager` treats an explicit element ref as `hasExplicitReturnFocus` and
+   focuses it unconditionally on close (`floating-ui-react/components/FloatingFocusManager.js:530–544`).
+   An explicit `finalFocus={triggerRef}` would therefore steal focus back from the create-team
+   dialog that the create-team action had just opened. The default (`returnFocus: true`)
+   restores focus to the trigger only when focus is still inside the palette, which is exactly
+   the desired behavior: Esc/⌘K/backdrop return to the trigger, while "Create team space"
+   leaves focus in the create dialog.
+5. **No stacked modals.** `CreateSpaceContextValue` gained an additive `isOpen`; the ⌘K handler
+   stands down while the create-team dialog is open, so two `aria-modal` layers can never be
+   open at once (which would let a single Esc close both).
+6. **Accessibility hardening from review:** the trigger keeps an `aria-label` when its text is
+   hidden at narrow widths; a visible close button replaces the sr-only one; the input is
+   `aria-describedby`-linked to the keyboard-shortcut legend; `event.repeat` is ignored;
+   the help footer wraps and the dialog viewport scrolls on very short screens.
+7. **Runtime focus/ARIA and the create-team transition remain browser checks** (Task 14);
+   this phase's automated evidence is `npm run build` + `npm run lint` (both green, all 8
+   routes build). An independent five-axis review found no blockers and produced fix 4–6.
 
 ### Phase 5: Verification
 

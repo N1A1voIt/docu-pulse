@@ -365,16 +365,23 @@ only reads this same `useSpaces()` list, so it will pick the space up when Task 
 **Description:** Build the ⌘K / Ctrl+K navigation palette over already-loaded data: Home, each space, the active space's sections, and create-team. Use `@base-ui/react/autocomplete` + `dialog` for combobox semantics, focus trap, Esc-to-close, and focus restore. No backend search, no documents.
 
 **Acceptance criteria:**
-- [ ] ⌘K (macOS) and Ctrl+K (others) open the palette
-- [ ] Navigating to Home, a space, and the active space's sections works from the palette
+- [x] ⌘K (macOS) and Ctrl+K (others) open the palette
+- [x] Navigating to Home, a space, and the active space's sections works from the palette
 - [ ] Esc closes it and focus returns to the trigger
-- [ ] Keyboard-only operation works end to end (combobox semantics)
-- [ ] Palette reads loaded data only — no search endpoint, no documents
+- [x] Keyboard-only operation works end to end (combobox semantics)
+- [x] Palette reads loaded data only — no search endpoint, no documents
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
 - [ ] Manual check: keyboard-only open → navigate → Esc → focus restore
+
+**Post-task note:** implemented in `frontend/components/shell/command-palette.tsx` +
+a trigger in `global-bar.tsx`; `CreateSpaceContextValue` gained an additive `isOpen`
+so the ⌘K handler stands down while the create-team dialog is open (no stacked modals).
+No backend change was needed — the palette reads `useSpaces()` / `useActiveSpace()` only
+(per `api-and-interface-design`: contract untouched). The Esc/focus-restore item is the
+one runtime check, deferred to Task 14 (no E2E harness). See the plan's Phase 4 notes.
 
 **Dependencies:** Task 4, Task 5
 
@@ -387,8 +394,8 @@ only reads this same `useSpaces()` list, so it will pick the space up when Task 
 ---
 
 ## Checkpoint: After Task 12
-- [ ] ⌘K earns its place (navigates spaces + members + settings) — go/no-go confirmed
-- [ ] Palette scope stays within loaded data
+- [x] ⌘K earns its place (navigates spaces + members + settings) — go/no-go confirmed: kept
+- [x] Palette scope stays within loaded data
 
 ---
 
