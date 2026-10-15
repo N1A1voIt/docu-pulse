@@ -33,8 +33,18 @@ rebuilt (`Skeleton`, `Alert`, retry, the create-team dialog, the login/signup pa
 - **Route groups first** (idea decision 7): the isolated, verifiable restructure lands before
   any shell exists, so a typed-route regression is caught by a build with nothing else moving.
 - **The route is the only owner of "where am I."** `SpaceProvider` derives `activeSpace` from
-  `useParams().id`; it is never written to localStorage, a cookie, or the DB. `SidebarProvider`'s
+  the route; it is never written to localStorage, a cookie, or the DB. `SidebarProvider`'s
   `sidebar_state` cookie is collapse state (chrome), not space context — allowed.
+  - **Deviation from the spec sketch (2026-10-15, during Task 4):** the active space is derived
+    from `usePathname()`, not `useParams()`. `useParams()` returns the params of *its own*
+    segment, and the shell chrome lives in `app/(app)/layout.tsx` — **above** `[id]` — where it
+    returns `{}`. The spec's `useParams<{ id?: string }>()` would have silently produced
+    `activeSpace === null` on every space route. The pathname is unambiguous at any depth.
+  - **Consequence (Task 5):** with `cacheComponents: true`, both `usePathname` and `useParams`
+    suspend for `/orgs/[id]` (no `generateStaticParams`), and the Next docs call out this exact
+    case ("a sidebar with active links rendered in a layout suspends on any page below it that
+    has an unknown dynamic param"). The shell chrome must therefore render inside a `Suspense`
+    boundary, or the build fails.
 - **One fetch answers four questions.** Extend `listOrganizationsForUser` to return
   `OrganizationForUser` (`planName`, `role`) via `LEFT JOIN plans` + `LEFT JOIN role`, so the
   rail, switcher badge, plan chip, and `canManage` all read one response. Additive and
