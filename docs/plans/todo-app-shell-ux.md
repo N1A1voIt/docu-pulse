@@ -84,6 +84,10 @@
 
 **Estimated scope:** M
 
+**Post-task note (review feedback):** pruned 9 unused exports from `sidebar.tsx`
+(727 → 508 lines, 0 insertions — see plan Architecture Decisions). Keep-list is
+spec-derived; re-confirm against real imports after Task 6.
+
 ---
 
 ## Task 4: Build `SpaceProvider` + `useSpaces()`

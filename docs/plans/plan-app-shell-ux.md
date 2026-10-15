@@ -55,6 +55,19 @@ rebuilt (`Skeleton`, `Alert`, retry, the create-team dialog, the login/signup pa
   not exist, so a CTA is a dead click).
 - **One dialog, two entry points.** The create-team dialog is mounted once in the shell and
   opened from the switcher footer and the Home empty state.
+- **The `sidebar` primitive is pruned to the shell's actual surface (2026-10-15, review feedback:
+  "sidebar code is way too long").** The registry item ships 24 exports / 727 lines — a full
+  responsive + collapsible + tooltip primitive with submenus, inline actions, badges, an input,
+  a drag-resize rail, and a skeleton. Our rail is a flat list of 5 items, so 9 unused exports
+  were deleted: **727 → 508 lines (−219)**, with **zero insertions** (retained code is
+  byte-identical; verified via `git diff --numstat` + lint + build). Diverges from the registry
+  by design — `shadcn add sidebar --overwrite` would clobber it, which we accept.
+  - Kept: `SidebarProvider`, `Sidebar`, `SidebarContent`, `SidebarHeader`, `SidebarFooter`,
+    `SidebarGroup`, `SidebarGroupLabel`, `SidebarGroupContent`, `SidebarMenu`, `SidebarMenuItem`,
+    `SidebarMenuButton` (+ internal `sidebarMenuButtonVariants`), `SidebarSeparator`,
+    `SidebarInset`, `SidebarTrigger`, `useSidebar`.
+  - The keep-list is **spec-derived**, not usage-derived (nothing imported the file when pruned).
+    Re-confirm it against real imports after Task 6; re-add an export if the rail needs one.
 - **Honest failure and bare auth.** Unknown/foreign space ids resolve to a "Space not found"
   `Alert` (never another org's name); unauthenticated `/` renders its existing landing with
   chrome suppressed.
