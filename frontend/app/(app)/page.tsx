@@ -152,16 +152,6 @@ export default function Home() {
             Welcome, {session?.user?.name ?? session?.user?.email}
           </h1>
         </div>
-        <button
-          className="text-sm underline"
-          type="button"
-          onClick={async () => {
-            await authClient.signOut();
-            window.location.replace("/sign-in");
-          }}
-        >
-          Sign out
-        </button>
       </div>
 
       <section className="mb-8">

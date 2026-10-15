@@ -90,16 +90,39 @@ rebuilt (`Skeleton`, `Alert`, retry, the create-team dialog, the login/signup pa
 
 ### Phase 2: Shell Scaffold
 
-- [ ] Task 5: `(app)/layout.tsx` shell scaffold — provider wiring + unauthenticated chrome suppression
-- [ ] Task 6: Rail — switcher with role badge + space-scoped nav + locked `Documents` row
-- [ ] Task 7: Global bar — breadcrumb chip, plan chip, avatar menu (single sign-out)
-- [ ] Task 8: `orgs/[id]/layout.tsx` — resolve the active space, honest "Space not found"
+- [x] Task 5: `(app)/layout.tsx` shell scaffold — provider wiring + unauthenticated chrome suppression
+- [x] Task 6: Rail — switcher with role badge + space-scoped nav + locked `Documents` row
+- [x] Task 7: Global bar — breadcrumb chip, plan chip, avatar menu (single sign-out)
+- [x] Task 8: `orgs/[id]/layout.tsx` — resolve the active space, honest "Space not found"
 
 ### Checkpoint: Shell Scaffold
-- [ ] `/`, `/orgs/[id]` render inside rail + bar; `/sign-in`, `/sign-up`, `/invites/accept` do not
-- [ ] Breadcrumb names the space on space routes and `DocuPulse` alone on `/`
-- [ ] Plan chip reads `Free` on a personal space and `Org` on a team space
-- [ ] Signed-out `/` still renders the landing
+- [x] `/`, `/orgs/[id]` render inside rail + bar; `/sign-in`, `/sign-up`, `/invites/accept` do not
+- [x] Breadcrumb names the space on space routes and `DocuPulse` alone on `/`
+- [x] Plan chip reads `Free` on a personal space and `Org` on a team space
+- [x] Signed-out `/` still renders the landing
+
+#### Phase 2 implementation notes (2026-10-15)
+
+Browser smoke is deferred to Task 14 (no E2E harness); items above are verified by
+`npm run build` + `npm run lint` and by code inspection.
+
+1. **Content wrapper is a plain `<div>`, not `SidebarInset`.** `SidebarInset` renders
+   `<main>`, and the pages still own their own `<main>` until the Phase 3 route split — two
+   nested `<main>`s is invalid HTML. `SidebarInset` stays exported but unused; re-evaluate in
+   Phase 3 once pages drop their own `<main>`.
+2. **`dropdown-menu` added** via `shadcn add dropdown-menu` (ask-first approved this session).
+   Wraps `@base-ui/react/menu`; no new npm dependency.
+3. **Create-team footer deferred to Task 11.** `SpaceSwitcher` already accepts an optional
+   `onCreateSpace`; without it no footer entry renders, so no dead click ships in the meantime.
+4. **⌘K trigger deferred to Task 12.** `global-bar.tsx` gains it when the palette exists.
+5. **`Documents` never navigates this iteration.** Entitlement (`documentsUnlocked`) only
+   changes its *appearance*: locked → `aria-disabled` + lock + reason; unlocked → a plain
+   non-link row. The feature does not exist, so neither state is a working link (plan Task 6).
+6. **In-page `OrgSwitcher` removed** from `orgs/[id]/page.tsx` — the rail owns switching now;
+   leaving both would show two switchers at once.
+7. **`usePathname` suspension handled twice** under `cacheComponents`: the shell chrome sits in
+   a `Suspense` boundary in `(app)/layout.tsx`, and the space gate in `orgs/[id]/layout.tsx`
+   sits in its own `Suspense`.
 
 ### Phase 3: Routes and Landing
 

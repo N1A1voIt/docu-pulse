@@ -128,16 +128,16 @@ spec-derived; re-confirm against real imports after Task 6.
 **Description:** Create the client shell layout that wraps only the product surface: mount `SpaceProvider` + `SidebarProvider`, render the rail and global bar, and suppress the chrome (rendering `children` bare) when there is no session so the public `/` landing survives unchanged. Typed plainly as `{ children: React.ReactNode }`.
 
 **Acceptance criteria:**
-- [ ] `(app)/layout.tsx` renders rail + global bar around `children`
-- [ ] When unauthenticated, chrome is suppressed and `children` render bare (no redirect to `/sign-in`)
-- [ ] `(auth)` routes are not wrapped by the shell
-- [ ] No chrome flash before the session branch resolves
-- [ ] Layout is typed `{ children: React.ReactNode }` (not the generated layout-route helper)
+- [x] `(app)/layout.tsx` renders rail + global bar around `children`
+- [x] When unauthenticated, chrome is suppressed and `children` render bare (no redirect to `/sign-in`)
+- [x] `(auth)` routes are not wrapped by the shell
+- [x] No chrome flash before the session branch resolves (chrome only renders once `status === "ok"`)
+- [x] Layout is typed `{ children: React.ReactNode }` (not the generated layout-route helper)
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: signed-out `/` shows the landing with no rail/bar
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: signed-out `/` shows the landing with no rail/bar — deferred to Task 14 (browser)
 
 **Dependencies:** Task 2, Task 3, Task 4
 
@@ -146,6 +146,9 @@ spec-derived; re-confirm against real imports after Task 6.
 
 **Estimated scope:** M
 
+**Post-task note:** content area is a plain `<div>`, not `SidebarInset` (`<main>`), to avoid a
+nested `<main>` while pages still own theirs (see plan Phase 2 implementation notes).
+
 ---
 
 ## Task 6: Rail — switcher with role badge, space-scoped nav, locked Documents row
@@ -153,17 +156,17 @@ spec-derived; re-confirm against real imports after Task 6.
 **Description:** Build the rail: a space switcher dropdown showing the caller's role badge and a create-team footer, then `Home`, then the space group (`Overview`, `Members`, `Invites`, `Settings`) only when a space is in the route, then the entitlement-locked `Documents` row. Nav items are real `Link`s with `aria-current="page"`; the locked row is `aria-disabled`, non-navigable, with a short reason via `aria-describedby`.
 
 **Acceptance criteria:**
-- [ ] Switcher switches spaces in one click and always reflects the route
-- [ ] Role badge reads from `activeSpace.role`
-- [ ] Space-scoped nav appears only when a space id is in the route; `aria-current="page"` on the active item
-- [ ] `Documents` renders locked when `activeSpace.isPersonal || activeSpace.planName !== "Org"`; never a working link
-- [ ] No upgrade/billing CTA is rendered anywhere in the rail
-- [ ] Rail reads intentional at 1, 2, and 3 spaces
+- [x] Switcher switches spaces in one click and always reflects the route
+- [x] Role badge reads from `activeSpace.role`
+- [x] Space-scoped nav appears only when a space id is in the route; `aria-current="page"` on the active item
+- [x] `Documents` renders locked when `activeSpace.isPersonal || activeSpace.planName !== "Org"`; never a working link
+- [x] No upgrade/billing CTA is rendered anywhere in the rail
+- [ ] Rail reads intentional at 1, 2, and 3 spaces — deferred to Task 14 (browser)
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: 1/2/3-space walkthrough; Documents locked on Free, unlocked on Org
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: 1/2/3-space walkthrough; Documents locked on Free, unlocked on Org — deferred to Task 14
 
 **Dependencies:** Task 3, Task 4, Task 5
 
@@ -175,6 +178,9 @@ spec-derived; re-confirm against real imports after Task 6.
 
 **Estimated scope:** M
 
+**Post-task note:** switcher's create-team footer is deferred to Task 11 (`SpaceSwitcher`
+already accepts an optional `onCreateSpace`, so no dead entry renders yet).
+
 ---
 
 ## Task 7: Global bar — breadcrumb chip, plan chip, avatar menu (single sign-out)
@@ -182,16 +188,16 @@ spec-derived; re-confirm against real imports after Task 6.
 **Description:** Build the global bar: a `DocuPulse › {Space}` breadcrumb chip on the left (space segment omitted on `/`), a ⌘K trigger, a truthful `Free`/`Org` plan chip, and an avatar menu. Move sign-out into the avatar menu and remove the two duplicated sign-out buttons.
 
 **Acceptance criteria:**
-- [ ] Breadcrumb reads `DocuPulse › {Space}` on space routes and `DocuPulse` alone on `/`
-- [ ] Plan chip reads from backend `planName` (`Free` / `Org`), not a hard-coded id→name map
-- [ ] Sign-out exists in exactly one place (avatar menu) with `authClient.signOut()` + `window.location.replace("/sign-in")` behavior preserved
-- [ ] The duplicated sign-out buttons at the old Home and org pages are removed
-- [ ] No notification bell, help menu, or theme toggle is rendered
+- [x] Breadcrumb reads `DocuPulse › {Space}` on space routes and `DocuPulse` alone on `/`
+- [x] Plan chip reads from backend `planName` (`Free` / `Org`), not a hard-coded id→name map
+- [x] Sign-out exists in exactly one place (avatar menu) with `authClient.signOut()` + `window.location.replace("/sign-in")` behavior preserved
+- [x] The duplicated sign-out buttons at the old Home and org pages are removed
+- [x] No notification bell, help menu, or theme toggle is rendered
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: sign-out still lands on `/sign-in`; breadcrumb/plan chip correct
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: sign-out still lands on `/sign-in`; breadcrumb/plan chip correct — deferred to Task 14
 
 **Dependencies:** Task 4, Task 5
 
@@ -203,6 +209,9 @@ spec-derived; re-confirm against real imports after Task 6.
 
 **Estimated scope:** M
 
+**Post-task note:** ⌘K trigger is deferred to Task 12 (palette). The in-page `OrgSwitcher`
+was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
+
 ---
 
 ## Task 8: `orgs/[id]/layout.tsx` — resolve the active space, honest "Space not found"
@@ -210,15 +219,15 @@ spec-derived; re-confirm against real imports after Task 6.
 **Description:** Add the org layout that resolves `activeSpace` only from the viewer's own space list and renders an honest "Space not found" `Alert` with a link to `/` when the id is unknown or foreign — never leaking another org's name into the rail, breadcrumb, or palette.
 
 **Acceptance criteria:**
-- [ ] Unknown or foreign id → "Space not found" `Alert` with a link to `/`
-- [ ] A non-member's space name never reaches the rail, breadcrumb, or palette
-- [ ] Layout uses the existing `Alert` component
-- [ ] The `router.replace('/sign-in?next=…')` redirect for signed-out users still fires
+- [x] Unknown or foreign id → "Space not found" `Alert` with a link to `/`
+- [x] A non-member's space name never reaches the rail, breadcrumb, or palette
+- [x] Layout uses the existing `Alert` component
+- [x] The `router.replace('/sign-in?next=…')` redirect for signed-out users still fires
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: bogus id shows the alert; signed-out space URL redirects to sign-in
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: bogus id shows the alert; signed-out space URL redirects to sign-in — deferred to Task 14
 
 **Dependencies:** Task 4, Task 5
 
@@ -227,13 +236,19 @@ spec-derived; re-confirm against real imports after Task 6.
 
 **Estimated scope:** S
 
+**Post-task note:** the gate reads the pathname (`useActiveSpace`), which suspends for
+`/orgs/[id]` under `cacheComponents`, so it sits in its own `Suspense` boundary.
+
 ---
 
 ## Checkpoint: After Tasks 5–8
-- [ ] `/`, `/orgs/[id]` render inside the rail + bar; `/sign-in`, `/sign-up`, `/invites/accept` do not
-- [ ] Breadcrumb and plan chip correct on personal and team spaces
-- [ ] Signed-out `/` still renders the landing
-- [ ] No space state written to any storage
+- [x] `/`, `/orgs/[id]` render inside the rail + bar; `/sign-in`, `/sign-up`, `/invites/accept` do not
+- [x] Breadcrumb and plan chip correct on personal and team spaces
+- [x] Signed-out `/` still renders the landing
+- [x] No space state written to any storage (`grep` for `localStorage`/`sessionStorage` → none; the `sidebar_state` cookie is collapse state only)
+
+> Runtime/browser smoke for these is Task 14 (no E2E harness); the boxes above are
+> verified by `npm run build` + `npm run lint` and by code inspection.
 
 ---
 
