@@ -48,6 +48,12 @@ const databaseUrl =
 const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:3000";
 const isProduction = process.env.NODE_ENV === "production";
 
+// Centralized email-related configuration. Resend is selected only when a
+// non-empty key is present; missing keys fall back to the no-op sender.
+const appUrl = process.env.APP_URL ?? clientOrigin;
+const resendApiKey = process.env.RESEND_API_KEY;
+const emailFrom = process.env.EMAIL_FROM;
+
 const authProviders = parseCommaList(
   process.env.AUTH_PROVIDERS,
   AUTH_PROVIDER_DEFAULTS,
@@ -145,7 +151,10 @@ export const env = {
   port,
   databaseUrl,
   clientOrigin,
+  appUrl,
   nodeEnv: process.env.NODE_ENV ?? "development",
+  resendApiKey,
+  emailFrom,
   isProduction,
   // Requested provider ids (normalized, as configured by AUTH_PROVIDERS).
   authProviders: uniqueAuthProviders,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +19,15 @@ interface Org {
 type LoadState = "loading" | "ok" | "error" | "unauth";
 
 export default function Home() {
+  const router = useRouter();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [session, setSession] = useState<null | { user?: { name?: string | null; email?: string | null; image?: string | null } }>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function load() {
     setErrorMsg(null);
@@ -166,18 +172,51 @@ export default function Home() {
 
       <section>
         <h2 className="text-xl font-medium mb-3">Teams</h2>
-        <Button
-          type="button"
-          variant="outline"
-          disabled
-          title="Team creation arrives with billing in the next iteration."
-        >
-          Create team space (coming with billing)
+        <Button type="button" variant="outline" onClick={() => setShowCreate(true)}>
+          Create team space
         </Button>
-        <p className="text-xs text-gray-500 mt-2">
-          Multi-seat organizations require a Polar subscription, which ships in
-          the next module.
-        </p>
+        {showCreate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+            <div className="w-full max-w-sm rounded-lg bg-background p-6 space-y-4">
+              <h2 className="text-lg font-semibold">Create team space</h2>
+              <form className="flex flex-col gap-3" onSubmit={async (e) => {
+                e.preventDefault();
+                setCreating(true);
+                setCreateError(null);
+                try {
+                  const res = await apiFetch("/api/organizations", {
+                    method: "POST",
+                    body: JSON.stringify({ name: createName }),
+                  });
+                  const body = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(body?.message ?? body?.error ?? "Create failed");
+                  setShowCreate(false);
+                  setCreateName("");
+                  router.push(`/orgs/${body.id}`);
+                } catch (err) {
+                  setCreateError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setCreating(false);
+                }
+              }}>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium">Name</span>
+                  <input
+                    className="rounded-md border px-2 py-1 text-sm"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    required
+                  />
+                </label>
+                {createError && <p className="text-sm text-destructive" role="alert">{createError}</p>}
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+                  <Button type="submit" disabled={creating}>{creating ? "Creating…" : "Create"}</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

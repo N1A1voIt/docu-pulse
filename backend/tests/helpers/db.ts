@@ -63,6 +63,7 @@ export async function resetSchema(): Promise<void> {
       DROP TABLE IF EXISTS "account"                CASCADE;
       DROP TABLE IF EXISTS "verification"           CASCADE;
       DROP TABLE IF EXISTS "user"                   CASCADE;
+      DROP TABLE IF EXISTS "invitations"            CASCADE;
       DROP TABLE IF EXISTS "integrations"           CASCADE;
       DROP TABLE IF EXISTS "possible_integration_docu" CASCADE;
       DROP TABLE IF EXISTS "seats"                  CASCADE;
