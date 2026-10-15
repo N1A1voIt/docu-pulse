@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function Home() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const createInputRef = useRef<HTMLInputElement>(null);
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -55,6 +56,23 @@ export default function Home() {
       await load();
     })();
   }, []);
+
+  useEffect(() => {
+    if (!showCreate) return;
+    const timer = window.setTimeout(() => createInputRef.current?.focus(), 0);
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowCreate(false);
+        setCreateError(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [showCreate]);
 
   if (loadState === "loading") {
     return (
@@ -176,9 +194,9 @@ export default function Home() {
           Create team space
         </Button>
         {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="create-space-title">
             <div className="w-full max-w-sm rounded-lg bg-background p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Create team space</h2>
+              <h2 id="create-space-title" className="text-lg font-semibold">Create team space</h2>
               <form className="flex flex-col gap-3" onSubmit={async (e) => {
                 e.preventDefault();
                 setCreating(true);
@@ -202,6 +220,7 @@ export default function Home() {
                 <label className="flex flex-col gap-1.5">
                   <span className="text-sm font-medium">Name</span>
                   <input
+                    ref={createInputRef}
                     className="rounded-md border px-2 py-1 text-sm"
                     value={createName}
                     onChange={(e) => setCreateName(e.target.value)}
