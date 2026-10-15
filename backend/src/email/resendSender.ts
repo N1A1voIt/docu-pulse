@@ -1,7 +1,12 @@
 import type { TransactionalEmailSender, SendEmailInput, InviteEmailInput } from "./sender.js";
+import { env } from "../config/env.js";
 
 export class ResendSender implements TransactionalEmailSender {
-  constructor(private apiKey: string) {}
+  constructor(private apiKey: string, private emailFrom?: string) {}
+
+  private get from(): string | undefined {
+    return this.emailFrom ?? env.emailFrom;
+  }
 
   async send(input: SendEmailInput): Promise<void> {
     const res = await fetch("https://api.resend.com/emails", {
@@ -11,7 +16,7 @@ export class ResendSender implements TransactionalEmailSender {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
+        from: this.from,
         to: input.to,
         subject: input.subject,
         html: input.html,
@@ -30,7 +35,7 @@ export class ResendSender implements TransactionalEmailSender {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
+        from: this.from,
         to: input.to,
         subject: `You've been invited to ${input.orgName}`,
         html: `<p>You've been invited as ${input.role}.</p><p><a href="${acceptUrl}">Accept invitation</a></p>`,

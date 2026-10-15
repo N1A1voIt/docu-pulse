@@ -205,70 +205,136 @@ export async function acceptInvitation(
   acceptingUserId: string,
   acceptingEmail?: string,
 ): Promise<{ organization: OrganizationSummary }> {
-  const row = await getInvitationByTokenHash(token);
-  if (!row) throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+  const hash = hashToken(token);
 
-  const now = new Date();
-  if (row.revoked_at) throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
-  if (new Date(row.expires_at) < now) throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
-
-  let emailToCompare = acceptingEmail;
-  if (!emailToCompare) {
-    const u = await pool.query<{ email: string }>(
-      `SELECT "email" FROM "users" WHERE "id" = $1`,
-      [acceptingUserId],
-    );
-    emailToCompare = u.rows[0]?.email;
-  }
-
-  if (String(row.invited_email).toLowerCase() !== String(emailToCompare ?? "").toLowerCase()) {
-    const nextPath = `/invites/accept?token=${encodeURIComponent(token)}`;
-    throw new InvitationError(
-      "EMAIL_MISMATCH",
-      `This invitation was sent to ${row.invited_email}. Sign in as that email to accept.`,
-      400,
-      { signInPath: `/sign-in?next=${encodeURIComponent(nextPath)}` },
-    );
-  }
-
-  const org = await getOrganizationById(String(row.id_organization));
-  if (!org) throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
-
-  const roleId = String(row.id_role);
   const client: PoolClient = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    const invRes = await client.query<{
+      id_invitation: string | number;
+      id_organization: string | number;
+      id_inviter_user: string | number;
+      invited_email: string;
+      id_role: string | number;
+      token_hash: string;
+      created_at: Date;
+      expires_at: Date;
+      revoked_at: Date | null;
+      accepted_at: Date | null;
+      accepted_user_id: string | number | null;
+      role_slug: string;
+    }>(
+      `SELECT i."id_invitation", i."id_organization", i."id_inviter_user", i."invited_email",
+              i."id_role", i."token_hash", i."created_at", i."expires_at",
+              i."revoked_at", i."accepted_at", i."accepted_user_id", r."slug" AS role_slug
+         FROM "invitations" i
+         JOIN "role" r ON r."id_role" = i."id_role"
+        WHERE i."token_hash" = $1
+        FOR UPDATE`,
+      [hash],
+    );
+
+    if (invRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+    }
+
+    const row = invRes.rows[0];
+    if (!tokensEqual(hash, row.token_hash)) {
+      await client.query("ROLLBACK");
+      throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+    }
+
+    const now = new Date();
+    if (row.revoked_at) {
+      await client.query("ROLLBACK");
+      throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+    }
+    if (new Date(row.expires_at) < now) {
+      await client.query("ROLLBACK");
+      throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+    }
+
+    let emailToCompare = acceptingEmail;
+    if (!emailToCompare) {
+      const u = await client.query<{ email: string }>(
+        `SELECT "email" FROM "users" WHERE "id" = $1`,
+        [acceptingUserId],
+      );
+      emailToCompare = u.rows[0]?.email;
+    }
+
+    if (
+      String(row.invited_email).toLowerCase() !==
+      String(emailToCompare ?? "").toLowerCase()
+    ) {
+      await client.query("ROLLBACK");
+      const nextPath = `/invites/accept?token=${encodeURIComponent(token)}`;
+      throw new InvitationError(
+        "EMAIL_MISMATCH",
+        `This invitation was sent to ${row.invited_email}. Sign in as that email to accept.`,
+        400,
+        { signInPath: `/sign-in?next=${encodeURIComponent(nextPath)}` },
+      );
+    }
+
+    const orgRes = await client.query<{
+      id_organization: string;
+      organization_name: string;
+      slug: string;
+      is_personal: boolean;
+      id_plan: string;
+    }>(
+      `SELECT "id_organization","organization_name","slug","is_personal","id_plan"
+         FROM "organizations" WHERE "id_organization" = $1`,
+      [row.id_organization],
+    );
+    if (orgRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      throw new InvitationError("INVITE_INVALID", "Invitation is invalid or expired", 400);
+    }
+    const orgRow = orgRes.rows[0];
+
+    const roleId = String(row.id_role);
+    const alreadyAccepted = !!row.accepted_at;
+
     await client.query(
       `INSERT INTO "seats" ("id_user","id_organization","id_role","role_txt")
        VALUES ($1,$2,$3,$4)
        ON CONFLICT ("id_user","id_organization") DO NOTHING`,
-      [acceptingUserId, org.id, roleId, row.role_slug],
+      [acceptingUserId, row.id_organization, roleId, row.role_slug],
     );
-    if (!row.accepted_at) {
+
+    if (!alreadyAccepted) {
       await client.query(
         `UPDATE "invitations"
             SET "accepted_at" = now(), "accepted_user_id" = $1
-          WHERE "id_invitation" = $2`,
+          WHERE "id_invitation" = $2 AND "accepted_at" IS NULL`,
         [acceptingUserId, row.id_invitation],
       );
     }
+
     await client.query("COMMIT");
+
+    return {
+      organization: {
+        id: String(orgRow.id_organization),
+        name: orgRow.organization_name,
+        slug: orgRow.slug,
+        isPersonal: orgRow.is_personal,
+        planId: String(orgRow.id_plan),
+      },
+    };
   } catch (err) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+    if (err instanceof InvitationError) throw err;
     throw err;
   } finally {
     client.release();
   }
-
-  return {
-    organization: {
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      isPersonal: org.isPersonal,
-      planId: org.planId,
-    },
-  };
 }
 
 export async function revokeInvitation(

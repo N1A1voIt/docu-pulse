@@ -209,19 +209,5 @@ export async function buildServer() {
     }
   });
 
-  app.post("/api/invites/:token", async (request, reply) => {
-    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
-    if (!session) return reply.status(401).send({ error: "Unauthorized" });
-    const userId = await domainUserIdFor(session as any);
-    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
-    const token = (request.params as { token: string }).token;
-    try {
-      const result = await acceptInvitation(token, userId, session.user.email);
-      return reply.status(200).send(result);
-    } catch (err) {
-      return sendInvitationError(reply, err);
-    }
-  });
-
   return app;
 }
