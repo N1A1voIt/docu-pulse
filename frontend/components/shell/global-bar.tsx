@@ -14,11 +14,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BreadcrumbChip } from "./breadcrumb-chip";
+import { CommandPalette } from "./command-palette";
 
 /**
- * The global bar: breadcrumb (left), then the space's plan chip and the avatar
- * menu (right). The ⌘K palette trigger is added by Task 12; sign-out lives in
- * exactly one place — this avatar menu — and nowhere else in the product.
+ * The global bar: breadcrumb (left), then the ⌘K palette trigger, the space's
+ * plan chip and the avatar menu (right). Sign-out lives in exactly one place —
+ * this avatar menu — and nowhere else in the product.
  */
 export function GlobalBar() {
   const { activeSpace } = useActiveSpace();
@@ -28,6 +29,7 @@ export function GlobalBar() {
       <SidebarTrigger />
       <BreadcrumbChip />
       <div className="ml-auto flex items-center gap-3">
+        <CommandPalette />
         {activeSpace?.planName && <PlanChip plan={activeSpace.planName} />}
         <AvatarMenu />
       </div>

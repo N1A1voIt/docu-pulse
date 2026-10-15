@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 interface CreateSpaceContextValue {
   /** Opens the one create-team dialog mounted in the shell. */
   open: () => void;
+  /** Whether that dialog is currently open — lets other surfaces avoid stacking. */
+  isOpen: boolean;
 }
 
 const CreateSpaceContext = createContext<CreateSpaceContextValue | null>(null);
@@ -40,7 +42,10 @@ export function CreateSpaceProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
-  const value = useMemo<CreateSpaceContextValue>(() => ({ open }), [open]);
+  const value = useMemo<CreateSpaceContextValue>(
+    () => ({ open, isOpen }),
+    [open, isOpen],
+  );
 
   return (
     <CreateSpaceContext.Provider value={value}>
