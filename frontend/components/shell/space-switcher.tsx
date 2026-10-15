@@ -78,8 +78,8 @@ export function SpaceSwitcher({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" sideOffset={6} className="min-w-56">
-        <DropdownMenuLabel>Spaces</DropdownMenuLabel>
         <DropdownMenuGroup>
+          <DropdownMenuLabel>Spaces</DropdownMenuLabel>
           {spaces.map((space) => {
             const isActive = space.id === activeSpace?.id;
             return (
