@@ -1,7 +1,7 @@
 import { pool } from "../db/pool.js";
 import type { PoolClient } from "pg";
 import { slugify } from "./slug.js";
-import type { Organization, CreateTeamOrgInput } from "./types.js";
+import type { Organization, OrganizationForUser, CreateTeamOrgInput } from "./types.js";
 
 export async function createPersonalOrganization(
   userId: string,
@@ -105,11 +105,23 @@ export async function getMemberRole(orgId: string, userId: string): Promise<stri
   return res.rows[0]?.slug ?? null;
 }
 
-export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
-  const res = await pool.query<{ id_organization: string; organization_name: string; slug: string; is_personal: boolean; id_plan: string }>(
-    `SELECT o."id_organization", o."organization_name", o."slug", o."is_personal", o."id_plan"
+export async function listOrganizationsForUser(userId: string): Promise<OrganizationForUser[]> {
+  const res = await pool.query<{
+    id_organization: string;
+    organization_name: string;
+    slug: string;
+    is_personal: boolean;
+    id_plan: string;
+    plan_name: string | null;
+    role_slug: string | null;
+  }>(
+    `SELECT o."id_organization", o."organization_name", o."slug", o."is_personal", o."id_plan",
+            p."plan_name" AS plan_name,
+            r."slug" AS role_slug
        FROM "organizations" o
        JOIN "seats" s ON s."id_organization" = o."id_organization"
+       LEFT JOIN "plans" p ON p."id" = o."id_plan"
+       LEFT JOIN "role" r ON r."id_role" = s."id_role"
       WHERE s."id_user" = $1
       ORDER BY o."id_organization"`,
     [userId],
@@ -120,6 +132,8 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
     slug: r.slug,
     isPersonal: r.is_personal,
     planId: r.id_plan,
+    planName: r.plan_name,
+    role: r.role_slug,
   }));
 }
 
