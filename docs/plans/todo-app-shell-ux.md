@@ -257,15 +257,15 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 **Description:** Extract the members list and the invites list (+ invite dialog + revoke, with `revokeError` handling) from today's single `orgs/[id]/page.tsx` into their own routes, preserving the existing `Skeleton` / `Alert` / retry behavior and the invite flow.
 
 **Acceptance criteria:**
-- [ ] `/orgs/[id]/members` renders the member list
-- [ ] `/orgs/[id]/invites` renders invites + "Invite member" dialog + revoke, gated by `canManage`
-- [ ] Existing `Skeleton` / `Alert` / retry states preserved on both routes
-- [ ] Invite creation and revoke still call the same endpoints and reload
+- [x] `/orgs/[id]/members` renders the member list
+- [x] `/orgs/[id]/invites` renders invites + "Invite member" dialog + revoke, gated by `canManage`
+- [x] Existing `Skeleton` / `Alert` / retry states preserved on both routes
+- [x] Invite creation and revoke still call the same endpoints and reload
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: invite + revoke still work on the new routes
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: invite + revoke still work on the new routes — deferred to Task 14 (browser)
 
 **Dependencies:** Task 5, Task 6, Task 8
 
@@ -276,6 +276,11 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 
 **Estimated scope:** M
 
+**Post-task note:** both pages read the active space from `useActiveSpace()` and tag
+their load result with the space id, so switching spaces never flashes stale rows. The
+fetch runs after `await` (not synchronously in the effect) to satisfy
+`react-hooks/set-state-in-effect`.
+
 ---
 
 ## Task 10: Add `/orgs/[id]` Overview and `/orgs/[id]/settings`; role-driven `canManage`
@@ -283,15 +288,15 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 **Description:** Make `/orgs/[id]` the space Overview and add a Settings route, and replace the email-matching `canManage` hack with the `role` now returned by `useSpaces()`.
 
 **Acceptance criteria:**
-- [ ] `/orgs/[id]` renders a space Overview (space name + slug + Personal/Team) inside the shell
-- [ ] `/orgs/[id]/settings` renders a real route
-- [ ] `canManage` is `activeSpace.role === "owner" || activeSpace.role === "admin"` — no email matching
-- [ ] Space identity is read from `useSpaces()`, not a second `/api/organizations` fetch
+- [x] `/orgs/[id]` renders a space Overview (space name + slug + Personal/Team) inside the shell
+- [x] `/orgs/[id]/settings` renders a real route
+- [x] `canManage` is `activeSpace.role === "owner" || activeSpace.role === "admin"` — no email matching
+- [x] Space identity is read from `useSpaces()`, not a second `/api/organizations` fetch
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: role badge and `canManage` gating agree on a personal vs team space
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: role badge and `canManage` gating agree on a personal vs team space — deferred to Task 14 (browser)
 
 **Dependencies:** Task 5, Task 6, Task 8, Task 9
 
@@ -301,6 +306,11 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 
 **Estimated scope:** S
 
+**Post-task note:** Settings is read-only — the backend has no organization update
+endpoint, so it renders the space's facts and says editing isn't available yet rather than
+showing dead controls. Adds a shared `SpaceFact` component and a `roleLabel` helper in
+`lib/spaces.tsx` (also adopted by `SpaceSwitcher`).
+
 ---
 
 ## Task 11: Home `/` unscoped landing + create-team dialog mounted once in the shell
@@ -308,16 +318,16 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 **Description:** Make Home the unscoped landing (space list + create-team entry), reusing the current page's `loading` / `unauth` / `error` / `ok` branches, and move the create-team dialog into the shell so it has exactly two entry points: the switcher dropdown footer and the Home empty state.
 
 **Acceptance criteria:**
-- [ ] Home reuses the existing `loading` / `unauth` / `error` / `ok` branches
-- [ ] Create-team dialog is mounted once in the shell
-- [ ] Both entry points (switcher footer, Home empty state) open the same dialog
-- [ ] Submitting creates the org and navigates to `/orgs/{id}`; the new space appears in switcher + palette
-- [ ] Signed-out `/` renders the existing front-door landing unchanged
+- [x] Home reuses the existing `loading` / `unauth` / `error` / `ok` branches
+- [x] Create-team dialog is mounted once in the shell
+- [x] Both entry points (switcher footer, Home empty state) open the same dialog
+- [x] Submitting creates the org and navigates to `/orgs/{id}`; the new space appears in switcher + palette
+- [x] Signed-out `/` renders the existing front-door landing unchanged
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: create team → land in space → rail/bar follow
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [ ] Manual check: create team → land in space → rail/bar follow — deferred to Task 14 (browser)
 
 **Dependencies:** Task 5, Task 6, Task 9
 
@@ -328,12 +338,23 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 
 **Estimated scope:** M
 
+**Post-task note:** `app-rail.tsx` needed no change (it already accepted `onCreateSpace`);
+the shell wiring landed in `(app)/layout.tsx` + `lib/spaces.tsx`. `SpaceProvider.createSpace()`
+posts, refreshes the list before navigation, and returns the id, so the new space is in the
+switcher (and, once built, the palette) and no full reload flashes the chrome. The palette
+only reads this same `useSpaces()` list, so it will pick the space up when Task 12 lands.
+
 ---
 
 ## Checkpoint: After Tasks 9–11
-- [ ] Every rail item navigates to a real route; `Documents` stays the only locked row
-- [ ] `Skeleton` / `Alert` / retry preserved; `canManage` is role-driven
-- [ ] End-to-end create-team flow works
+- [x] Every rail item navigates to a real route; `Documents` stays the only locked row
+- [x] `Skeleton` / `Alert` / retry preserved; `canManage` is role-driven
+- [ ] End-to-end create-team flow works — deferred to Task 14 (browser)
+
+> Manual/browser checks are deferred to Task 14 (no E2E harness); the boxes above are
+> verified by `npm run build` + `npm run lint` and by code inspection. Follow-up gap
+> recorded in the plan notes: the Invites page offers the invite button on a personal space
+> where `canInvite` will refuse the POST.
 
 ---
 

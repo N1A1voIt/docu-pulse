@@ -126,15 +126,44 @@ Browser smoke is deferred to Task 14 (no E2E harness); items above are verified 
 
 ### Phase 3: Routes and Landing
 
-- [ ] Task 9: Split `/orgs/[id]/members` and `/orgs/[id]/invites` out of the single org page
-- [ ] Task 10: Add `/orgs/[id]` Overview and `/orgs/[id]/settings`; replace the email-matching `canManage`
-- [ ] Task 11: Home `/` unscoped landing + create-team dialog mounted once in the shell
+- [x] Task 9: Split `/orgs/[id]/members` and `/orgs/[id]/invites` out of the single org page
+- [x] Task 10: Add `/orgs/[id]` Overview and `/orgs/[id]/settings`; replace the email-matching `canManage`
+- [x] Task 11: Home `/` unscoped landing + create-team dialog mounted once in the shell
 
 ### Checkpoint: Routes and Landing
-- [ ] Every rail item navigates to a real route; `Documents` stays the only locked row
-- [ ] `/orgs/[id]/members`, `/invites`, `/settings` render with existing `Skeleton`/`Alert`/retry preserved
-- [ ] `canManage` is driven by `role`, not email matching
-- [ ] End-to-end create-team → land in space → rail/bar follow
+- [x] Every rail item navigates to a real route; `Documents` stays the only locked row
+- [x] `/orgs/[id]/members`, `/invites`, `/settings` render with existing `Skeleton`/`Alert`/retry preserved
+- [x] `canManage` is driven by `role`, not email matching
+- [ ] End-to-end create-team → land in space → rail/bar follow — deferred to Task 14 (browser)
+
+#### Phase 3 implementation notes (2026-10-15)
+
+1. **No backend change was required.** `planName` + `role` from Task 1 already carry
+   everything the split routes need, so the backend contract is untouched (as the skill's
+   interface-design rules require). `npm run typecheck` is the backend gate this phase; the
+   DB-backed `npm test` schema suite needs `DATABASE_URL_TEST` exported and resets a schema,
+   so it was not run against the shared dev database (no backend code changed).
+2. **Load results are tagged with the space id** on Members and Invites, and the fetch runs
+   after `await` (never synchronously in an effect) — this both satisfies the
+   `react-hooks/set-state-in-effect` rule and prevents stale rows when switching spaces.
+3. **`/orgs/[id]` is the Overview** (name/slug/type + plan + role). **Settings is read-only**:
+   the backend exposes no organization update endpoint, so it states that editing isn't
+   available yet rather than rendering controls that lead nowhere (no dead buttons).
+4. **`canManage` is role-driven** (`owner`/`admin`) from the single `/api/organizations`
+   response; the email-matching hack is removed. `SpaceSwitcher` now shares the exported
+   `roleLabel` helper instead of its own map.
+5. **Home consumes the shell's data** (`useSpaces()`, no second fetch) and the create-team
+   dialog is mounted once in `(app)/layout.tsx`, opened from both the switcher footer and the
+   Home empty state. `SpaceProvider.createSpace()` posts, refreshes the list before
+   navigation, and returns the id — one source of truth for spaces, no full-reload chrome flash.
+6. **`SidebarInset` re-evaluated and still unused.** Every page owns its own `<main>`, and
+   `SidebarInset` renders a `<main>`, so wrapping would nest two landmarks. The shell keeps its
+   plain `<div>`; the comment in `(app)/layout.tsx` was updated to say so.
+7. **Follow-up gap recorded:** on a personal / non-`Org` space the Invites page shows the
+   "Invite member" button (the viewer's role is `owner`), but `POST /invites` is refused by
+   `backend/src/entitlements/canInvite.ts`. This matches the plan's `canManage` gating and the
+   pre-existing behavior, but the button is a dead control there — mirror the entitlement in a
+   later slice if invites stay visible on personal spaces.
 
 ### Phase 4: Palette
 
