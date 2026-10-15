@@ -63,4 +63,21 @@ describe("organizations service", () => {
     const orgs = await listOrganizationsForUser(userId);
     expect(orgs).toHaveLength(2);
   });
+
+  it("returns the plan name and the viewer's role for each org", async () => {
+    const userId = await insertUser("contract@example.com");
+    const personal = await createPersonalOrganization(userId, "Contract");
+    const team = await createTeamOrganization(userId, { name: "Contract Team" });
+
+    const orgs = await listOrganizationsForUser(userId);
+    const byId = new Map(orgs.map((o) => [o.id, o]));
+
+    const listedPersonal = byId.get(personal.id);
+    expect(listedPersonal?.planName).toBe("Free");
+    expect(listedPersonal?.role).toBe("owner");
+
+    const listedTeam = byId.get(team.id);
+    expect(listedTeam?.planName).toBe("Org");
+    expect(listedTeam?.role).toBe("owner");
+  });
 });

@@ -7,7 +7,6 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrgSwitcher } from "@/components/org-switcher";
 import { MemberList } from "@/components/member-list";
 import { InviteList } from "@/components/invite-list";
 import { InviteDialog } from "@/components/invite-dialog";
@@ -120,16 +119,6 @@ function OrgPageContent() {
         <div>
           <h1 className="text-2xl font-semibold">{currentOrg?.name ?? "Space"}</h1>
           <p className="text-xs text-muted-foreground">{currentOrg?.slug} · {currentOrg?.isPersonal ? "Personal" : "Team"}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <OrgSwitcher orgs={orgs} currentId={id} />
-          <button
-            type="button"
-            className="text-sm underline"
-            onClick={async () => { await authClient.signOut(); router.replace("/sign-in"); }}
-          >
-            Sign out
-          </button>
         </div>
       </div>
 
