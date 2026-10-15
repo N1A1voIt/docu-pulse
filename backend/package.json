@@ -8,8 +8,8 @@
     "db:init": "bash scripts/init-db.sh",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/src/index.js",
+    "dev": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --network-family-autoselection-attempt-timeout=2000\" tsx src/index.ts",
+    "start": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --network-family-autoselection-attempt-timeout=2000\" node dist/src/index.js",
     "build": "tsc --noEmit false --outDir dist"
   },
   "keywords": [],
