@@ -145,6 +145,7 @@ export const env = {
   port,
   databaseUrl,
   clientOrigin,
+  appUrl: process.env.APP_URL ?? clientOrigin,
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProduction,
   // Requested provider ids (normalized, as configured by AUTH_PROVIDERS).

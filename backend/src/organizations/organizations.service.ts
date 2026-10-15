@@ -78,6 +78,33 @@ export async function createTeamOrganization(
   }
 }
 
+export async function getOrganizationById(orgId: string): Promise<Organization | null> {
+  const res = await pool.query<{ id_organization: string; organization_name: string; slug: string; is_personal: boolean; id_plan: string }>(
+    `SELECT "id_organization","organization_name","slug","is_personal","id_plan"
+       FROM "organizations" WHERE "id_organization" = $1`,
+    [orgId],
+  );
+  if (res.rows.length === 0) return null;
+  const r = res.rows[0];
+  return {
+    id: r.id_organization,
+    name: r.organization_name,
+    slug: r.slug,
+    isPersonal: r.is_personal,
+    planId: r.id_plan,
+  };
+}
+
+export async function getMemberRole(orgId: string, userId: string): Promise<string | null> {
+  const res = await pool.query<{ slug: string }>(
+    `SELECT r."slug"
+       FROM "seats" s JOIN "role" r ON r."id_role" = s."id_role"
+      WHERE s."id_organization" = $1 AND s."id_user" = $2`,
+    [orgId, userId],
+  );
+  return res.rows[0]?.slug ?? null;
+}
+
 export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
   const res = await pool.query<{ id_organization: string; organization_name: string; slug: string; is_personal: boolean; id_plan: string }>(
     `SELECT o."id_organization", o."organization_name", o."slug", o."is_personal", o."id_plan"

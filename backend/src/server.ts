@@ -5,12 +5,18 @@ import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "./auth/auth.js";
 import { env } from "./config/env.js";
 import { pool } from "./db/pool.js";
-import { listOrganizationsForUser } from "./organizations/organizations.service.js";
+import { listOrganizationsForUser, createTeamOrganization } from "./organizations/organizations.service.js";
+import {
+  createInvitation,
+  listInvitations,
+  acceptInvitation,
+  revokeInvitation,
+  listMembers,
+} from "./invitations/invitations.service.js";
+import { InvitationError } from "./invitations/invitations.types.js";
 
 function isHttpsRequest(request: { protocol?: string; headers: Record<string, unknown> }): boolean {
   if (request.protocol === "https") return true;
-  // Only honor forwarded headers when an explicit trust-proxy setting exists,
-  // so clients cannot self-declare HTTPS and trigger (or suppress) HSTS.
   if (env.trustProxy) {
     const forwarded = request.headers["x-forwarded-proto"];
     const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
@@ -83,31 +89,138 @@ export async function buildServer() {
   });
 
   app.get("/api/me", async (request, reply) => {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(request.headers),
-    });
-    if (!session) {
-      return reply.status(401).send({ error: "Unauthorized" });
-    }
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
     return reply.send(session);
   });
 
-  app.get("/api/organizations", async (request, reply) => {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(request.headers),
-    });
-    if (!session) {
-      return reply.status(401).send({ error: "Unauthorized" });
+  async function domainUserIdFor(session: { user: { email: string } }): Promise<string | null> {
+    const r = await pool.query<{ id: string }>(`SELECT "id"::text AS id FROM "users" WHERE "email" = $1`, [session.user.email]);
+    return r.rows[0]?.id ?? null;
+  }
+
+  function sendInvitationError(reply: any, err: unknown) {
+    if (err instanceof InvitationError) {
+      return reply.status(err.status).send({ error: err.code, message: err.message, ...(err.extra ?? {}) });
     }
+    return reply.status(500).send({ error: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "Unknown" });
+  }
+
+  app.get("/api/organizations", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
     const domainUser = await pool.query<{ id: string }>(
       `SELECT "id"::text AS id FROM "users" WHERE "email" = $1`,
       [session.user.email],
     );
-    if (domainUser.rows.length === 0) {
-      return reply.send([]);
-    }
+    if (domainUser.rows.length === 0) return reply.send([]);
     const orgs = await listOrganizationsForUser(domainUser.rows[0].id);
     return reply.send(orgs);
+  });
+
+  app.post("/api/organizations", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const body = (request.body ?? {}) as { name?: string; slug?: string };
+    if (!body.name || typeof body.name !== "string") {
+      return reply.status(400).send({ error: "INVALID_INPUT", message: "name required" });
+    }
+    try {
+      const org = await createTeamOrganization(userId, { name: body.name, slug: body.slug });
+      return reply.status(201).send(org);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.get("/api/organizations/:id/members", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const orgId = (request.params as { id: string }).id;
+    try {
+      const members = await listMembers(orgId, userId);
+      return reply.send(members);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.get("/api/organizations/:id/invites", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const orgId = (request.params as { id: string }).id;
+    try {
+      const invites = await listInvitations(orgId, userId);
+      return reply.send(invites);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.post("/api/organizations/:id/invites", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const orgId = (request.params as { id: string }).id;
+    const body = (request.body ?? {}) as { email?: string; role?: string };
+    if (!body.email || !body.role) {
+      return reply.status(400).send({ error: "INVALID_INPUT", message: "email and role required" });
+    }
+    try {
+      const invite = await createInvitation(orgId, userId, { email: body.email, role: body.role });
+      return reply.status(201).send(invite);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.delete("/api/organizations/:id/invites/:inviteId", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const params = request.params as { id: string; inviteId: string };
+    try {
+      await revokeInvitation(params.id, userId, params.inviteId);
+      return reply.status(204).send();
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.post("/api/invites/:token/accept", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const token = (request.params as { token: string }).token;
+    try {
+      const result = await acceptInvitation(token, userId, session.user.email);
+      return reply.status(200).send(result);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
+  });
+
+  app.post("/api/invites/:token", async (request, reply) => {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (!session) return reply.status(401).send({ error: "Unauthorized" });
+    const userId = await domainUserIdFor(session as any);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    const token = (request.params as { token: string }).token;
+    try {
+      const result = await acceptInvitation(token, userId, session.user.email);
+      return reply.status(200).send(result);
+    } catch (err) {
+      return sendInvitationError(reply, err);
+    }
   });
 
   return app;
