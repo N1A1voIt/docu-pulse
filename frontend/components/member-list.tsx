@@ -4,10 +4,10 @@ export interface Member {
   id?: string;
   seatId?: string;
   userId?: string;
-  email: string;
-  name: string;
-  role: string;
-  user?: { id: string; email: string; name: string };
+  email?: string;
+  name?: string;
+  role?: string;
+  user?: { id?: string; email?: string; name?: string };
 }
 
 export function MemberList({ members }: { members: Member[] }) {

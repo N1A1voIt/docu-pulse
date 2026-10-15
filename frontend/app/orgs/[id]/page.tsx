@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrgSwitcher } from "@/components/org-switcher";
@@ -14,15 +13,17 @@ import { InviteList } from "@/components/invite-list";
 import { InviteDialog } from "@/components/invite-dialog";
 
 interface Org { id: string; name: string; slug: string; isPersonal: boolean }
+interface MemberItem { id?: string; seatId?: string; email?: string; name?: string; role?: string; user?: { id?: string; email?: string; name?: string } }
+interface InviteItem { id: string; invitedEmail: string; role: string; acceptedAt?: string | null; revokedAt?: string | null }
 
 function OrgPageContent() {
   const params = useParams();
   const id = String(params?.id ?? "");
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<{ user?: { email?: string | null } } | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
+  const [members, setMembers] = useState<MemberItem[]>([]);
+  const [invites, setInvites] = useState<InviteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
@@ -60,7 +61,9 @@ function OrgPageContent() {
   }
 
   useEffect(() => {
-    if (id) void load();
+    void (async () => {
+      if (id) await load();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 

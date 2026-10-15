@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ interface Org {
 type LoadState = "loading" | "ok" | "error" | "unauth";
 
 export default function Home() {
+  const router = useRouter();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [session, setSession] = useState<null | { user?: { name?: string | null; email?: string | null; image?: string | null } }>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
@@ -190,7 +192,7 @@ export default function Home() {
                   if (!res.ok) throw new Error(body?.message ?? body?.error ?? "Create failed");
                   setShowCreate(false);
                   setCreateName("");
-                  window.location.href = `/orgs/${body.id}`;
+                  router.push(`/orgs/${body.id}`);
                 } catch (err) {
                   setCreateError(err instanceof Error ? err.message : "Create failed");
                 } finally {
