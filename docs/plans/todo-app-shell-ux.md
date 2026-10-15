@@ -8,15 +8,15 @@
 **Description:** Extend the `/api/organizations` list so one response answers "which spaces, on what plan, in what role". Add `OrganizationForUser` (`planName`, `role`) and change only `listOrganizationsForUser` to LEFT JOIN `plans` and `role` via the existing seats join. Leave `getOrganizationById` and both create paths returning `Organization` unchanged.
 
 **Acceptance criteria:**
-- [ ] `OrganizationForUser extends Organization` adds `planName: string | null` and `role: string | null`
-- [ ] `listOrganizationsForUser` returns `OrganizationForUser[]` using `LEFT JOIN "plans" p ON p."id" = o."id_plan"` and `LEFT JOIN "role" r ON r."id_role" = s."id_role"`
-- [ ] `getOrganizationById` / create paths return `Organization` unchanged (no viewer-relative fields)
-- [ ] New test: fresh personal space → `planName === "Free"` and `role === "owner"`; created team → `planName === "Org"`
-- [ ] Existing `organizations.service.test.ts` cases stay green
+- [x] `OrganizationForUser extends Organization` adds `planName: string | null` and `role: string | null`
+- [x] `listOrganizationsForUser` returns `OrganizationForUser[]` using `LEFT JOIN "plans" p ON p."id" = o."id_plan"` and `LEFT JOIN "role" r ON r."id_role" = s."id_role"`
+- [x] `getOrganizationById` / create paths return `Organization` unchanged (no viewer-relative fields)
+- [x] New test: fresh personal space → `planName === "Free"` and `role === "owner"`; created team → `planName === "Org"`
+- [x] Existing `organizations.service.test.ts` cases stay green
 
 **Verification:**
-- [ ] Tests pass: backend `npm test -- tests/organizations.service.test.ts`
-- [ ] Typecheck passes: backend `npm run typecheck`
+- [x] Tests pass: backend `npm test -- tests/organizations.service.test.ts`
+- [x] Typecheck passes: backend `npm run typecheck`
 
 **Dependencies:** None
 
@@ -34,16 +34,16 @@
 **Description:** Move the product surface into `app/(app)/` and the auth pages into `app/(auth)/`, leaving the root `layout.tsx` in place. Route groups are excluded from the URL path, so no URL changes. This is the isolated first slice (idea decision 7) so any typed-route regression surfaces in a build with nothing else moving.
 
 **Acceptance criteria:**
-- [ ] `app/page.tsx` → `app/(app)/page.tsx`; `app/orgs/[id]/page.tsx` → `app/(app)/orgs/[id]/page.tsx`
-- [ ] `app/sign-in`, `app/sign-up`, `app/invites/accept` → under `app/(auth)/`
-- [ ] Root `app/layout.tsx` keeps `LayoutProps<"/">`; no route URLs change
-- [ ] `.next/types/routes.d.ts` regenerates with the same layout routes as before the move
-- [ ] `/`, `/orgs/[id]`, `/sign-in`, `/sign-up`, `/invites/accept` all still build
+- [x] `app/page.tsx` → `app/(app)/page.tsx`; `app/orgs/[id]/page.tsx` → `app/(app)/orgs/[id]/page.tsx`
+- [x] `app/sign-in`, `app/sign-up`, `app/invites/accept` → under `app/(auth)/`
+- [x] Root `app/layout.tsx` keeps `LayoutProps<"/">`; no route URLs change
+- [x] `.next/types/routes.d.ts` regenerates with the same layout routes as before the move
+- [x] `/`, `/orgs/[id]`, `/sign-in`, `/sign-up`, `/invites/accept` all still build
 
 **Verification:**
-- [ ] Build: frontend `npm run build` (TypeScript + typed routes)
-- [ ] Lint: frontend `npm run lint`
-- [ ] Manual check: each of the 5 URLs loads after the move
+- [x] Build: frontend `npm run build` (TypeScript + typed routes)
+- [x] Lint: frontend `npm run lint`
+- [x] Manual check: each of the 5 URLs loads after the move
 
 **Dependencies:** None
 
@@ -63,15 +63,15 @@
 **Description:** Add the base-maia `sidebar` registry item, which pulls `separator`, `sheet`, `tooltip`, and `use-mobile`. Replace the shadcn-internal `IconPlaceholder` import (`@/app/(create)/components/icon-placeholder`) with the real hugeicons `SidebarLeftIcon`, and confirm no `@/registry/...` imports remain after the CLI's alias rewrite. **Ask-first boundary: new shadcn components.**
 
 **Acceptance criteria:**
-- [ ] `components/ui/sidebar.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx` and the mobile hook exist
-- [ ] No `IconPlaceholder` usage remains; `SidebarTrigger` renders `SidebarLeftIcon` from `@hugeicons/core-free-icons`
-- [ ] No `@/registry/` or `@/app/(create)/` import paths remain in the added files
-- [ ] `npm run build` succeeds with the new components present
+- [x] `components/ui/sidebar.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx` and the mobile hook exist
+- [x] No `IconPlaceholder` usage remains; `SidebarTrigger` renders `SidebarLeftIcon` from `@hugeicons/core-free-icons`
+- [x] No `@/registry/` or `@/app/(create)/` import paths remain in the added files
+- [x] `npm run build` succeeds with the new components present
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
-- [ ] Grep: no matches for `IconPlaceholder`, `@/registry`, or `@/app/(create)` under `frontend/components/ui`
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
+- [x] Grep: no matches for `IconPlaceholder`, `@/registry`, or `@/app/(create)` under `frontend/components/ui`
 
 **Dependencies:** None
 
@@ -91,15 +91,15 @@
 **Description:** Add the single source of truth for spaces: a client provider that fetches `/api/organizations` once via `apiFetch` (keeping `credentials: "include"`), exposes `spaces` / `activeSpace` / load state / `reload`, derives `activeSpace` from `useParams().id`, and mirrors the entitlement rule as a display-only `documentsUnlocked`.
 
 **Acceptance criteria:**
-- [ ] `activeSpace` is derived from the route via `useMemo` and never persisted to any storage
-- [ ] Provider exposes `loading` / `error` / `ok` states plus a `reload` action
-- [ ] `documentsUnlocked === activeSpace !== null && !activeSpace.isPersonal && activeSpace.planName === "Org"`
-- [ ] Only one `/api/organizations` fetch is issued for the shell (pages consume the provider)
-- [ ] `credentials: "include"` is used on the fetch
+- [x] `activeSpace` is derived from the route via `useMemo` and never persisted to any storage
+- [x] Provider exposes `loading` / `error` / `ok` states plus a `reload` action
+- [x] `documentsUnlocked === activeSpace !== null && !activeSpace.isPersonal && activeSpace.planName === "Org"`
+- [ ] Only one `/api/organizations` fetch is issued for the shell (pages consume the provider) — pages still fetch their own; completed in Tasks 9–10
+- [x] `credentials: "include"` is used on the fetch
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
 
 **Dependencies:** Task 1, Task 2
 
@@ -111,10 +111,10 @@
 ---
 
 ## Checkpoint: After Tasks 1–4
-- [ ] `npm run build` succeeds with 0 TypeScript errors after the route-group move
-- [ ] `npm run lint` passes
-- [ ] `npm test` green including the new `OrganizationForUser` case
-- [ ] All product and auth URLs resolve as before the move
+- [x] `npm run build` succeeds with 0 TypeScript errors after the route-group move
+- [x] `npm run lint` passes
+- [x] `npm test` green including the new `OrganizationForUser` case
+- [x] All product and auth URLs resolve as before the move
 - [ ] Human review before the shell is built
 
 ---
