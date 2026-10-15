@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { formatSocialStartError, mapOAuthError, type SocialStartError } from "@/lib/auth-errors";
 import { getEnabledProviders } from "@/lib/auth-providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,26 +19,15 @@ function safeNext(value: string | null): string {
   return value;
 }
 
-function mapOAuthError(code: string | null): string | null {
-  if (!code) return null;
-  switch (code) {
-    case "access_denied":
-    case "user_cancelled":
-      return "Sign-in was cancelled.";
-    case "account_not_linked":
-    case "email_already_exists":
-    case "account_exists":
-      return "An account with this email already exists. Sign in with your password instead.";
-    default:
-      return "Sign-in failed. Please try again.";
-  }
-}
-
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeNext(searchParams.get("next"));
-  const oauthError = mapOAuthError(searchParams.get("error"));
+  const oauthError = mapOAuthError(
+    searchParams.get("error"),
+    searchParams.get("error_description"),
+    "sign-in",
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,13 +58,13 @@ function SignInContent() {
         callbackURL: `${window.location.origin}${next}`,
         errorCallbackURL: `${window.location.origin}/sign-in?next=${encodeURIComponent(next)}`,
       });
-      const err = (result as { error?: { message?: string } } | null)?.error;
+      const err = (result as { error?: SocialStartError } | null)?.error;
       if (err) {
-        setError(err.message ?? "Sign-in failed. Please try again.");
+        setError(formatSocialStartError(err, "sign-in"));
         setPendingProvider(null);
       }
     } catch {
-      setError("Network error. Is the backend running on port 3001?");
+      setError("Couldn't reach the server. Check your connection and try again.");
       setPendingProvider(null);
     }
   }
@@ -92,7 +82,7 @@ function SignInContent() {
       }
       router.replace(next);
     } catch {
-      setError("Network error. Is the backend running on port 3001?");
+      setError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
