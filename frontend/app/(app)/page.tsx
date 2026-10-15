@@ -1,82 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import Link from "next/link";
+
+import { useSpaces } from "@/lib/spaces";
+import { useCreateSpace } from "@/components/shell/create-space-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiFetch } from "@/lib/api";
 
-interface Org {
-  id: string;
-  name: string;
-  slug: string;
-  isPersonal: boolean;
-}
-
-type LoadState = "loading" | "ok" | "error" | "unauth";
-
+/**
+ * Home — the unscoped landing. It reads the spaces the shell already loaded
+ * (one `/api/organizations` call, no local fetch) and keeps the public
+ * front-door landing for signed-out visitors. Create-team is opened from the
+ * one dialog mounted in the shell.
+ */
 export default function Home() {
-  const router = useRouter();
-  const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [session, setSession] = useState<null | { user?: { name?: string | null; email?: string | null; image?: string | null } }>(null);
-  const [orgs, setOrgs] = useState<Org[]>([]);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const createInputRef = useRef<HTMLInputElement>(null);
-  const [createName, setCreateName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const { status, error, spaces, reload } = useSpaces();
+  const { open: openCreateSpace } = useCreateSpace();
 
-  async function load() {
-    setErrorMsg(null);
-    try {
-      const { data } = await authClient.getSession();
-      if (!data?.user) {
-        setLoadState("unauth");
-        return;
-      }
-      setSession(data);
-      const res = await apiFetch("/api/organizations");
-      if (!res.ok) {
-        throw new Error(`Failed to load spaces (${res.status})`);
-      }
-      setOrgs(await res.json());
-      setLoadState("ok");
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to load");
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    void (async () => {
-      await load();
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!showCreate) return;
-    const timer = window.setTimeout(() => createInputRef.current?.focus(), 0);
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setShowCreate(false);
-        setCreateError(null);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [showCreate]);
-
-  if (loadState === "loading") {
+  if (status === "loading") {
     return (
-      <main className="min-h-screen p-8 max-w-2xl mx-auto space-y-4">
+      <main className="mx-auto max-w-2xl space-y-4 p-8">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -84,11 +34,11 @@ export default function Home() {
     );
   }
 
-  if (loadState === "unauth") {
+  if (status === "unauth") {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
         <h1 className="text-3xl font-semibold">DocuPulse</h1>
-        <p className="text-gray-600 max-w-sm">
+        <p className="max-w-sm text-gray-600">
           Every account starts with a free personal space. Create one in a few
           seconds.
         </p>
@@ -104,20 +54,13 @@ export default function Home() {
     );
   }
 
-  if (loadState === "error") {
+  if (status === "error") {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6 max-w-md mx-auto">
+      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-6 py-8 text-center">
         <Alert variant="destructive">
-          <AlertDescription>{errorMsg ?? "Failed to load"}</AlertDescription>
+          <AlertDescription>{error ?? "Failed to load"}</AlertDescription>
         </Alert>
-        <Button
-          onClick={() => {
-            setLoadState("loading");
-            void load();
-          }}
-          type="button"
-          variant="outline"
-        >
+        <Button onClick={reload} type="button" variant="outline">
           Retry
         </Button>
       </main>
@@ -125,108 +68,64 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen p-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6 gap-3">
-        <div className="flex items-center gap-3">
-          {session?.user?.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={session.user.image}
-              alt={session.user.name ?? session.user.email ?? "User avatar"}
-              className="size-8 rounded-full object-cover ring-1 ring-foreground/10"
-              width={32}
-              height={32}
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground ring-1 ring-foreground/10"
-            >
-              {(session?.user?.name ?? session?.user?.email ?? "?")
-                .trim()
-                .charAt(0)
-                .toUpperCase()}
-            </span>
-          )}
-          <h1 className="text-2xl font-semibold">
-            Welcome, {session?.user?.name ?? session?.user?.email}
-          </h1>
-        </div>
+    <main className="mx-auto w-full max-w-2xl flex-1 space-y-8 p-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Your spaces</h1>
+        <p className="text-sm text-muted-foreground">
+          Pick a space to work in, or create a team space for others to join.
+        </p>
       </div>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-medium mb-3">Your spaces</h2>
-        {orgs.length === 0 ? (
+      <section aria-labelledby="spaces-heading">
+        <h2 id="spaces-heading" className="mb-3 text-xl font-medium">
+          Spaces
+        </h2>
+        {spaces.length === 0 ? (
           <Alert>
-            <AlertDescription>
-              No spaces yet — your personal space is still being provisioned.
+            <AlertDescription className="flex flex-col items-start gap-3">
+              <span>
+                No spaces yet — your personal space is still being provisioned.
+              </span>
+              <Button type="button" variant="outline" onClick={openCreateSpace}>
+                Create team space
+              </Button>
             </AlertDescription>
           </Alert>
         ) : (
           <div className="grid gap-3">
-            {orgs.map((org) => (
-              <Card key={org.id}>
-                <CardHeader>
-                  <CardTitle>{org.name}</CardTitle>
-                  <CardDescription>
-                    {org.slug} · {org.isPersonal ? "Personal" : "Team"}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+            {spaces.map((space) => (
+              <Link
+                key={space.id}
+                href={`/orgs/${space.id}`}
+                className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <Card className="transition-colors hover:bg-accent/50">
+                  <CardHeader>
+                    <CardTitle>{space.name}</CardTitle>
+                    <CardDescription>
+                      {space.slug} · {space.isPersonal ? "Personal" : "Team"}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
       </section>
 
-      <section>
-        <h2 className="text-xl font-medium mb-3">Teams</h2>
-        <Button type="button" variant="outline" onClick={() => setShowCreate(true)}>
-          Create team space
-        </Button>
-        {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="create-space-title">
-            <div className="w-full max-w-sm rounded-lg bg-background p-6 space-y-4">
-              <h2 id="create-space-title" className="text-lg font-semibold">Create team space</h2>
-              <form className="flex flex-col gap-3" onSubmit={async (e) => {
-                e.preventDefault();
-                setCreating(true);
-                setCreateError(null);
-                try {
-                  const res = await apiFetch("/api/organizations", {
-                    method: "POST",
-                    body: JSON.stringify({ name: createName }),
-                  });
-                  const body = await res.json().catch(() => ({}));
-                  if (!res.ok) throw new Error(body?.message ?? body?.error ?? "Create failed");
-                  setShowCreate(false);
-                  setCreateName("");
-                  router.push(`/orgs/${body.id}`);
-                } catch (err) {
-                  setCreateError(err instanceof Error ? err.message : "Create failed");
-                } finally {
-                  setCreating(false);
-                }
-              }}>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium">Name</span>
-                  <input
-                    ref={createInputRef}
-                    className="rounded-md border px-2 py-1 text-sm"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    required
-                  />
-                </label>
-                {createError && <p className="text-sm text-destructive" role="alert">{createError}</p>}
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-                  <Button type="submit" disabled={creating}>{creating ? "Creating…" : "Create"}</Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </section>
+      {spaces.length > 0 && (
+        <section aria-labelledby="teams-heading">
+          <h2 id="teams-heading" className="mb-3 text-xl font-medium">
+            Teams
+          </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Create a team space to collaborate with others.
+          </p>
+          <Button type="button" variant="outline" onClick={openCreateSpace}>
+            Create team space
+          </Button>
+        </section>
+      )}
     </main>
   );
 }

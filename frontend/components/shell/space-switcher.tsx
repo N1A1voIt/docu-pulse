@@ -8,7 +8,7 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 
-import { useActiveSpace, useSpaces } from "@/lib/spaces";
+import { roleLabel, useActiveSpace, useSpaces } from "@/lib/spaces";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,17 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  member: "Member",
-};
-
 function RoleBadge({ role }: { role: string | null }) {
   if (!role) return null;
   return (
     <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-sidebar-accent-foreground uppercase">
-      {ROLE_LABEL[role] ?? role}
+      {roleLabel(role)}
     </span>
   );
 }
