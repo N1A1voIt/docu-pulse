@@ -87,13 +87,13 @@
 **Description:** Add backend tests for create, list, revoke, and accept with valid email and role, including no-token/no-hash assertions in list output.
 
 **Acceptance criteria:**
-- [ ] Create invite returns 201-style summary without token fields
-- [ ] List includes pending, accepted, and revoked states
-- [ ] Revoke changes `revoked_at`
-- [ ] Accept returns `{ organization }`
+- [x] Create invite returns 201-style summary without token fields
+- [x] List includes pending, accepted, and revoked states
+- [x] Revoke changes `revoked_at`
+- [x] Accept returns `{ organization }`
 
 **Verification:**
-- [ ] Tests pass: `npm test -- tests/invitations.service.test.ts`
+- [x] Tests pass: `npm test -- tests/invitations.service.test.ts`
 
 **Dependencies:** Task 3
 
@@ -109,15 +109,15 @@
 **Description:** Cover role gates, subscription guard, SHA-256 hash storage, constant-time compare, expired/revoked/accepted rejection, cross-email mismatch including sign-in path, and double-accept idempotency.
 
 **Acceptance criteria:**
-- [ ] Owner/admin can invite; member and non-member are rejected
-- [ ] Personal/non-subscribed org invite returns 403 `SUBSCRIPTION_REQUIRED`
-- [ ] Stored `token_hash` is 64 hex chars
-- [ ] Expired, revoked, and accepted invites return 400 `INVITE_INVALID`
-- [ ] Cross-email accept returns 400 `EMAIL_MISMATCH` with sign-in path
-- [ ] Repeat accept leaves exactly one seat
+- [x] Owner/admin can invite; member and non-member are rejected
+- [x] Personal/non-subscribed org invite returns 403 `SUBSCRIPTION_REQUIRED`
+- [x] Stored `token_hash` is 64 hex chars
+- [x] Expired, revoked, and accepted invites return 400 `INVITE_INVALID`
+- [x] Cross-email accept returns 400 `EMAIL_MISMATCH` with sign-in path
+- [x] Repeat accept leaves exactly one seat
 
 **Verification:**
-- [ ] Tests pass: `npm test -- tests/invitations.service.test.ts`
+- [x] Tests pass: `npm test -- tests/invitations.service.test.ts`
 
 **Dependencies:** Task 4
 
@@ -133,14 +133,14 @@
 **Description:** Add an auth-style smoke test that creates a team org, invites a second domain user, accepts the invite, and verifies the org appears in the recipient's space list with one seat.
 
 **Acceptance criteria:**
-- [ ] Team org is created by an owner
-- [ ] Invite is created for a second user
-- [ ] Accept creates exactly one seat for the recipient
-- [ ] Recipient's `listOrganizationsForUser` includes the team org
-- [ ] Total seats for org is two (owner + invitee)
+- [x] Team org is created by an owner
+- [x] Invite is created for a second user
+- [x] Accept creates exactly one seat for the recipient
+- [x] Recipient's `listOrganizationsForUser` includes the team org
+- [x] Total seats for org is two (owner + invitee)
 
 **Verification:**
-- [ ] Tests pass: `npm test -- tests/invitations.smoke.test.ts`
+- [x] Tests pass: `npm test -- tests/invitations.smoke.test.ts`
 
 **Dependencies:** Task 5
 
@@ -156,12 +156,12 @@
 **Description:** Keep `structure.test.ts` and `constraints.test.ts` aligned with 8 public tables and the four new invitations FKs.
 
 **Acceptance criteria:**
-- [ ] Structure test expects exactly 8 public tables
-- [ ] Constraints test expects invitations FKs
-- [ ] No test relies on manual DDL
+- [x] Structure test expects exactly 8 public tables
+- [x] Constraints test expects invitations FKs
+- [x] No test relies on manual DDL
 
 **Verification:**
-- [ ] Tests pass: `npm test -- tests/structure.test.ts tests/constraints.test.ts`
+- [x] Tests pass: `npm test -- tests/structure.test.ts tests/constraints.test.ts`
 
 **Dependencies:** Task 3
 
@@ -174,9 +174,9 @@
 ---
 
 ## Checkpoint: After Tasks 4-7
-- [ ] `npm run typecheck` passes
-- [ ] `npm test` passes
-- [ ] Invitation security cases covered
+- [x] `npm run typecheck` passes
+- [x] `npm test` passes
+- [x] Invitation security cases covered
 
 ---
 

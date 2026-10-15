@@ -34,15 +34,15 @@ Most of the backend/frontend skeleton already exists in the working tree (migrat
 
 ### Phase 2: Backend Tests
 
-- [ ] Task 4: Write `invitations.service.test.ts` core lifecycle tests
-- [ ] Task 5: Write token security and guard tests
-- [ ] Task 6: Write `invitations.smoke.test.ts` (two users, one seat)
-- [ ] Task 7: Confirm `structure.test.ts` and `constraints.test.ts` expectations (8 tables)
+- [x] Task 4: Write `invitations.service.test.ts` core lifecycle tests
+- [x] Task 5: Write token security and guard tests
+- [x] Task 6: Write `invitations.smoke.test.ts` (two users, one seat)
+- [x] Task 7: Confirm `structure.test.ts` and `constraints.test.ts` expectations (8 tables)
 
 ### Checkpoint: Backend Tests
-- [ ] `npm test` all green
-- [ ] `npm run typecheck` passes
-- [ ] Auth smoke plus invite smoke pass sequentially
+- [x] `npm test` all green
+- [x] `npm run typecheck` passes
+- [x] Auth smoke plus invite smoke pass sequentially
 
 ### Phase 3: Frontend Verification
 
