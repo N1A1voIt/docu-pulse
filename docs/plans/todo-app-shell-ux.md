@@ -258,7 +258,7 @@ was also removed from `orgs/[id]/page.tsx` — the rail owns switching now.
 
 **Acceptance criteria:**
 - [x] `/orgs/[id]/members` renders the member list
-- [x] `/orgs/[id]/invites` renders invites + "Invite member" dialog + revoke, gated by `canManage`
+- [x] `/orgs/[id]/invites` renders invites + "Invite member" dialog + revoke, gated by `canManage` (and the `canInvite` entitlement mirror)
 - [x] Existing `Skeleton` / `Alert` / retry states preserved on both routes
 - [x] Invite creation and revoke still call the same endpoints and reload
 
@@ -352,9 +352,11 @@ only reads this same `useSpaces()` list, so it will pick the space up when Task 
 - [ ] End-to-end create-team flow works — deferred to Task 14 (browser)
 
 > Manual/browser checks are deferred to Task 14 (no E2E harness); the boxes above are
-> verified by `npm run build` + `npm run lint` and by code inspection. Follow-up gap
-> recorded in the plan notes: the Invites page offers the invite button on a personal space
-> where `canInvite` will refuse the POST.
+> verified by `npm run build` + `npm run lint` and by code inspection. An independent
+> five-axis review (`code-review-and-quality`) then found and fixed two issues: the Invite
+> action is now entitlement-gated (no dead button on a personal / non-`Org` space), and a
+> failed post-create refresh now reloads instead of surfacing "Space not found". Remaining
+> non-blocking follow-ups are recorded in the plan's Phase 3 notes (note 8).
 
 ---
 

@@ -132,11 +132,14 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       try {
         setSpaces(await fetchSpaces());
       } catch {
-        // Navigation still proceeds; the next load picks the space up.
+        // The POST already succeeded, so the space exists even though this
+        // refresh failed. Re-run the full load so the space gate re-resolves
+        // instead of reporting the just-created space as "not found".
+        reload();
       }
       return { id: body.id };
     },
-    [fetchSpaces],
+    [fetchSpaces, reload],
   );
 
   const value = useMemo<SpacesContextValue>(
@@ -205,7 +208,13 @@ export function useActiveSpace() {
 
   const activeSpaceId = useMemo(() => {
     const match = pathname?.match(SPACE_ROUTE);
-    return match ? decodeURIComponent(match[1]) : null;
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      // A malformed escape (e.g. `/orgs/%`) is not a space id; treat as none.
+      return null;
+    }
   }, [pathname]);
 
   const activeSpace = useMemo(

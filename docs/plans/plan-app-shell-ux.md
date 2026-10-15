@@ -159,11 +159,23 @@ Browser smoke is deferred to Task 14 (no E2E harness); items above are verified 
 6. **`SidebarInset` re-evaluated and still unused.** Every page owns its own `<main>`, and
    `SidebarInset` renders a `<main>`, so wrapping would nest two landmarks. The shell keeps its
    plain `<div>`; the comment in `(app)/layout.tsx` was updated to say so.
-7. **Follow-up gap recorded:** on a personal / non-`Org` space the Invites page shows the
-   "Invite member" button (the viewer's role is `owner`), but `POST /invites` is refused by
-   `backend/src/entitlements/canInvite.ts`. This matches the plan's `canManage` gating and the
-   pre-existing behavior, but the button is a dead control there — mirror the entitlement in a
-   later slice if invites stay visible on personal spaces.
+7. **Invite action is entitlement-gated (fixed in review).** An independent five-axis review
+   (`code-review-and-quality`) found that a personal / non-`Org` space (where the viewer is
+   `owner`) rendered an "Invite member" button that `backend/src/entitlements/canInvite.ts`
+   would refuse. The button is now gated on `canManage && documentsUnlocked` — the same
+   `!isPersonal && plan_name === "Org"` mirror already used for `Documents` — and shows a
+   short reason when a manager lacks the entitlement. `Revoke` is hidden from non-managers
+   too (the backend requires owner/admin). The same review hardened `createSpace`: if the
+   post-create refresh fails, it now `reload()`s so the space gate re-resolves instead of
+   reporting the just-created space as "not found".
+8. **Review follow-ups (not blocking).** The same review flagged, deliberately deferred:
+   the hand-rolled create/invite dialogs set `role="dialog" aria-modal="true"` without a
+   focus trap or focus restore (reuse the base-ui dialog primitive in a later slice); the
+   shell renders bare — no rail/bar — while `status === "loading"` on a hard reload, causing a
+   layout shift; the space gate's error branch offers no retry; and Members/Invites share a
+   near-identical load scaffold that could become a `useSpaceResource` hook if a third space
+   resource appears. `frontend/components/org-switcher.tsx` is dead code (no importers) left
+   from the pre-shell page — remove it once confirmed.
 
 ### Phase 4: Palette
 

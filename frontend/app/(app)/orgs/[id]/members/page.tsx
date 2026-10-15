@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MemberList, type Member } from "@/components/member-list";
 
 /** Load result is tagged with the space id so switching spaces never shows stale rows. */
-type Loaded = { id: string; members: Member[] };
-type Failed = { id: string; message: string };
+type Loaded = { spaceId: string; members: Member[] };
+type Failed = { spaceId: string; message: string };
 
 /**
  * The space's member list. Space identity and membership are already resolved
@@ -37,12 +37,12 @@ export default function MembersPage() {
         if (cancelled) return;
         if (!res.ok) throw new Error(`Failed to load members (${res.status})`);
         const members = (await res.json()) as Member[];
-        setLoaded({ id, members });
+        setLoaded({ spaceId: id, members });
         setFailed(null);
       } catch (err) {
         if (cancelled) return;
         setFailed({
-          id,
+          spaceId: id,
           message: err instanceof Error ? err.message : "Failed to load members",
         });
       }
@@ -53,7 +53,12 @@ export default function MembersPage() {
     };
   }, [id, attempt]);
 
-  const state = failed?.id === id ? "error" : loaded?.id === id ? "ok" : "loading";
+  const state =
+    failed?.spaceId === id
+      ? "error"
+      : loaded?.spaceId === id
+        ? "ok"
+        : "loading";
 
   if (state === "loading") {
     return (
