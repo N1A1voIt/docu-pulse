@@ -91,3 +91,34 @@ Most of the backend/frontend skeleton already exists in the working tree (migrat
 - Service tests and token tests can be written in parallel.
 - Frontend build verification can run while backend tests are authored.
 - DB migration verification must finish before backend integration tests.
+
+## Phase 4 Notes
+
+### Verification evidence
+
+- Backend: `npm run typecheck` passes; `npm test` passes (52 tests) with `DATABASE_URL_TEST=postgres://postgres:postgres@localhost:5432/docupulse`. This includes 8 public tables, invitation FKs, service lifecycle/security, and auth + invite smoke tests (one seat on repeat accept).
+- DB init: `npm run db:init` runs migrations `0001`–`0004` idempotently; second run exits 0 (verified via `init-db.sh`). The invitations table and its three indexes are covered.
+- Frontend: `npm run build` succeeds with 0 TypeScript errors; `npm run lint` passes with 0 errors. Routes `/`, `/orgs/[id]`, `/invites/accept`, `/sign-in`, `/sign-up` all build.
+- Token security: SHA-256 hex (`token_hash`) length 64 is asserted by tests; accept returns `{ organization }` and no `token`/`token_hash` leaks in list responses. `EMAIL_MISMATCH` responses include the sign-in path.
+
+### Assumptions reaffirmed (Phase 4)
+
+- `Entitlements.canInvite` remains a proxy: a non-personal org on the `Org` plan. It is isolated in `backend/src/entitlements/canInvite.ts` so the Polar check can replace it later without caller changes.
+- Missing `RESEND_API_KEY` selects the no-op sender (logs accept URLs), so local dev/tests complete; prod requires the key through env.
+- Recipients without an account sign up first using the invited email; the personal org is still auto-created at signup. The accept flow redirects unauthenticated recipients to `/sign-in?next=/invites/accept?token=...`.
+- Active space is derived from the route (`/orgs/[id]`); no persisted current-org field or localStorage is used.
+- Email prefetch is GET-only and cannot trigger accept; repeat accepts are idempotent server-side (`ON CONFLICT ("id_user","id_organization") DO NOTHING`) plus module-level client dedup.
+
+### Open questions (chosen defaults, recorded for later billing work)
+
+1. Real subscription status vs. proxy: keep proxy via Org plan + isolated hook until `SPEC-billing.md` is written.
+2. Member list scope: full member list available to any org member.
+3. Create team org after billing: remains plain creation; checkout is a separate billing action.
+4. Token in URL path: accepted for v1 behind HTTPS; stored as SHA-256 hash only.
+5. Sender retry: roll back the transaction and return 502 `EMAIL_SEND_FAILED`; no half-invite remains.
+6. Active-space route naming: `/orgs/[id]`.
+
+### Follow-up gaps (not automated by this agent; human verification needed)
+
+- Manual browser smoke checklist: create team space dialog, invite dialog as owner/admin, accept while logged out then back, switch spaces via the route-based switcher, and recovery on expired/revoked/wrong-account invites.
+- Run verification commands with `DATABASE_URL_TEST` set (or wire it into the local test environment) before merging; the suite refuses to run schema tests without it.

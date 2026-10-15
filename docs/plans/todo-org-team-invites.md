@@ -263,9 +263,9 @@
 **Description:** Record the billing-proxy, no-op sender, signup/provisioning, route-name, and token-in-URL decisions so later billing work can swap the guard without caller changes.
 
 **Acceptance criteria:**
-- [ ] `Entitlements.canInvite` boundary remains documented
-- [ ] Open questions remain listed with chosen defaults
-- [ ] Plan notes are updated if decisions change
+- [x] `Entitlements.canInvite` boundary remains documented
+- [x] Open questions remain listed with chosen defaults
+- [x] Plan notes are updated if decisions change
 
 **Verification:**
 - [ ] Manual review of `docs/plans/plan-org-team-invites.md`
@@ -285,9 +285,9 @@
 **Description:** Walk all 16 success criteria and mark any implementation or verification gap before completion.
 
 **Acceptance criteria:**
-- [ ] Backend criteria 1-10 verified
-- [ ] Frontend criteria 11-16 verified
-- [ ] Any gap is recorded as a follow-up task
+- [x] Backend criteria 1-10 verified (automated tests/gates; see plan Phase 4 Notes)
+- [x] Frontend criteria 11-16 verified (build/lint green; manual browser smoke remains a follow-up)
+- [x] Any gap is recorded as a follow-up task
 
 **Verification:**
 - [ ] Manual checklist
@@ -304,7 +304,7 @@
 ---
 
 ## Checkpoint: Complete
-- [ ] Backend tests pass
-- [ ] Frontend build and lint pass
-- [ ] Manual smoke checklist complete
-- [ ] Ready for human review
+- [x] Backend tests pass
+- [x] Frontend build and lint pass
+- [ ] Manual smoke checklist complete (requires browser; follow-up gaps recorded in plan Phase 4 Notes)
+- [x] Ready for human review (automated gates green; manual smoke pending)
