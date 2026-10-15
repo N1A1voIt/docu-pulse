@@ -12,23 +12,29 @@ import { InviteDialog } from "@/components/invite-dialog";
 
 /** Load result is tagged with the space id so switching spaces never shows stale rows. */
 type Loaded = { spaceId: string; invites: Invite[] };
-type Failed = { id: string; message: string };
+type Failed = { spaceId: string; message: string };
 
 /**
- * The space's pending invitations, plus the invite dialog and revoke action.
- * `canManage` is driven by the caller's `role` from the one
- * `/api/organizations` response — never by matching the viewer's email against
- * the member list.
+ * The space's invitations, plus the invite dialog and revoke action.
+ *
+ * `canManage` (owner/admin) comes from the caller's `role` in the one
+ * `/api/organizations` response — never from matching the viewer's email against
+ * the member list. Actually creating an invite is additionally gated server-side
+ * by `canInvite` (non-personal space on the Org plan); `documentsUnlocked`
+ * mirrors that same rule, so the button is only offered when the server would
+ * accept it.
  */
 export default function InvitesPage() {
-  const { activeSpace } = useActiveSpace();
+  const { activeSpace, documentsUnlocked } = useActiveSpace();
   const id = activeSpace?.id ?? "";
-  const canManage = activeSpace?.role === "owner" || activeSpace?.role === "admin";
+  const canManage =
+    activeSpace?.role === "owner" || activeSpace?.role === "admin";
+  const canInvite = canManage && documentsUnlocked;
 
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState<Failed | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<Failed | null>(null);
   const [showInvite, setShowInvite] = useState(false);
 
   useEffect(() => {
@@ -46,8 +52,9 @@ export default function InvitesPage() {
       } catch (err) {
         if (cancelled) return;
         setFailed({
-          id,
-          message: err instanceof Error ? err.message : "Failed to load invites",
+          spaceId: id,
+          message:
+            err instanceof Error ? err.message : "Failed to load invites",
         });
       }
     })();
@@ -58,7 +65,11 @@ export default function InvitesPage() {
   }, [id, attempt]);
 
   const state =
-    failed?.id === id ? "error" : loaded?.spaceId === id ? "ok" : "loading";
+    failed?.spaceId === id
+      ? "error"
+      : loaded?.spaceId === id
+        ? "ok"
+        : "loading";
 
   async function handleInvite(email: string, role: string) {
     const res = await apiFetch(`/api/organizations/${id}/invites`, {
@@ -81,14 +92,23 @@ export default function InvitesPage() {
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body?.message ?? body?.error ?? "Failed to revoke invite");
+        throw new Error(
+          body?.message ?? body?.error ?? "Failed to revoke invite",
+        );
       }
       setAttempt((n) => n + 1);
     } catch (err) {
-      setRevokeError(
-        err instanceof Error ? err.message : "Failed to revoke invite",
-      );
+      setRevokeError({
+        spaceId: id,
+        message:
+          err instanceof Error ? err.message : "Failed to revoke invite",
+      });
     }
+  }
+
+  function retry() {
+    setFailed(null);
+    setAttempt((n) => n + 1);
   }
 
   if (state === "loading") {
@@ -109,13 +129,7 @@ export default function InvitesPage() {
             {failed?.message ?? "Failed to load invites"}
           </AlertDescription>
         </Alert>
-        <Button
-          onClick={() => {
-            setFailed(null);
-            setAttempt((n) => n + 1);
-          }}
-          variant="outline"
-        >
+        <Button onClick={retry} variant="outline">
           Retry
         </Button>
       </main>
@@ -126,28 +140,36 @@ export default function InvitesPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 p-8">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Invites</h1>
           <p className="text-sm text-muted-foreground">
-            Pending invitations to {activeSpace?.name}.
+            Invitations to {activeSpace?.name}.
           </p>
         </div>
-        {canManage && (
+        {canInvite ? (
           <Button onClick={() => setShowInvite(true)}>Invite member</Button>
-        )}
+        ) : canManage ? (
+          <p className="max-w-56 text-right text-sm text-muted-foreground">
+            Invites unlock on a team space with the Org plan.
+          </p>
+        ) : null}
       </div>
 
-      {revokeError && (
+      {revokeError?.spaceId === id && (
         <Alert variant="destructive">
-          <AlertDescription>{revokeError}</AlertDescription>
+          <AlertDescription>{revokeError.message}</AlertDescription>
         </Alert>
       )}
 
       {invites.length === 0 ? (
         <p className="text-sm text-muted-foreground">No invites yet.</p>
       ) : (
-        <InviteList invites={invites} onRevoke={handleRevoke} />
+        <InviteList
+          invites={invites}
+          onRevoke={handleRevoke}
+          canRevoke={canManage}
+        />
       )}
 
       <InviteDialog

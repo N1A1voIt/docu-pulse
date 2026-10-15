@@ -10,7 +10,15 @@ export interface Invite {
   acceptedAt?: string | null;
 }
 
-export function InviteList({ invites, onRevoke }: { invites: Invite[]; onRevoke: (id: string) => void }) {
+export function InviteList({
+  invites,
+  onRevoke,
+  canRevoke = true,
+}: {
+  invites: Invite[];
+  onRevoke: (id: string) => void;
+  canRevoke?: boolean;
+}) {
   return (
     <ul className="grid gap-2">
       {invites.map((inv) => (
@@ -21,7 +29,7 @@ export function InviteList({ invites, onRevoke }: { invites: Invite[]; onRevoke:
               {inv.role} · {inv.acceptedAt ? "accepted" : inv.revokedAt ? "revoked" : "pending"}
             </div>
           </div>
-          {!inv.acceptedAt && !inv.revokedAt && (
+          {canRevoke && !inv.acceptedAt && !inv.revokedAt && (
             <button type="button" className="text-sm underline" onClick={() => onRevoke(inv.id)}>
               Revoke
             </button>

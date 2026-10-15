@@ -135,7 +135,7 @@ function CreateSpaceDialog({
             <Button type="button" variant="outline" onClick={close}>
               Cancel
             </Button>
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating || name.trim() === ""}>
               {creating ? "Creating…" : "Create"}
             </Button>
           </div>
