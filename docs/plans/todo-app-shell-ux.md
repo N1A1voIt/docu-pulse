@@ -98,7 +98,7 @@ spec-derived; re-confirm against real imports after Task 6.
 - [x] `activeSpace` is derived from the route via `useMemo` and never persisted to any storage
 - [x] Provider exposes `loading` / `error` / `ok` states plus a `reload` action
 - [x] `documentsUnlocked === activeSpace !== null && !activeSpace.isPersonal && activeSpace.planName === "Org"`
-- [ ] Only one `/api/organizations` fetch is issued for the shell (pages consume the provider) — pages still fetch their own; completed in Tasks 9–10
+- [x] Only one `/api/organizations` fetch is issued for the shell (pages consume the provider) — pages still fetch their own; completed in Tasks 9–10
 - [x] `credentials: "include"` is used on the fetch
 
 **Verification:**
@@ -404,19 +404,23 @@ one runtime check, deferred to Task 14 (no E2E harness). See the plan's Phase 4 
 **Description:** Run the primary frontend gate once the shell and all routes exist: `npm run build` (TypeScript + typed-route generation) and `npm run lint`.
 
 **Acceptance criteria:**
-- [ ] `npm run build` succeeds with 0 TypeScript errors
-- [ ] `npm run lint` passes with 0 errors
-- [ ] All 8 routes build: `/`, `/orgs/[id]`, `/orgs/[id]/members`, `/orgs/[id]/invites`, `/orgs/[id]/settings`, `/sign-in`, `/sign-up`, `/invites/accept`
+- [x] `npm run build` succeeds with 0 TypeScript errors
+- [x] `npm run lint` passes with 0 errors
+- [x] All 8 routes build: `/`, `/orgs/[id]`, `/orgs/[id]/members`, `/orgs/[id]/invites`, `/orgs/[id]/settings`, `/sign-in`, `/sign-up`, `/invites/accept`
 
 **Verification:**
-- [ ] Build: frontend `npm run build`
-- [ ] Lint: frontend `npm run lint`
+- [x] Build: frontend `npm run build`
+- [x] Lint: frontend `npm run lint`
 
 **Dependencies:** Task 12
 
 **Files likely touched:** none (gate only)
 
 **Estimated scope:** XS
+
+**Post-task note (2026-10-16):** gate run twice — once on `develop` as inherited by
+Phase 5, once after the Phase 5 review fixes — green both times. The build lists all
+8 routes plus `/_not-found`.
 
 ---
 
@@ -436,13 +440,26 @@ one runtime check, deferred to Task 14 (no E2E harness). See the plan's Phase 4 
 
 **Verification:**
 - [ ] Manual check: browser walkthrough of all 8 items
-- [ ] Backend gate: `npm test` + `npm run typecheck` green (includes the `OrganizationForUser` case)
+- [x] Backend typecheck: `npm run typecheck` green
+- [ ] Backend tests: `npm test` (includes the `OrganizationForUser` case) — **deferred, see note**
 
 **Dependencies:** Task 13
 
 **Files likely touched:** none (verification only)
 
 **Estimated scope:** S
+
+**Post-task note (2026-10-16): both halves of this task are human-owned and remain
+open.**
+1. **Browser smoke:** no E2E harness exists and adding one is an ask-first boundary, so
+   the 8-check walkthrough is not run here — it stays the plan's open question 5.
+   Criteria that the runtime checks cover are listed as gaps in Task 15.
+2. **Backend suite:** `DATABASE_URL_TEST` in `backend/.env` points at the *same*
+   `localhost:5432/docupulse` database as `DATABASE_URL`, and `resetSchema()`
+   (`tests/helpers/db.ts`) drops every table before re-running migrations. Running
+   `npm test` here would therefore wipe the local dev database (2 users / 2 orgs at the
+   time of writing), so it was deliberately **not** run. The `OrganizationForUser` case
+   itself is unchanged from Task 1, where it passed.
 
 ---
 
@@ -451,14 +468,15 @@ one runtime check, deferred to Task 14 (no E2E harness). See the plan's Phase 4 
 **Description:** Walk all 10 success criteria and mark any implementation or verification gap as a follow-up before completion; note the CAPABILITY-MAP decision (no row added) and the `use-mobile` placement deviation.
 
 **Acceptance criteria:**
-- [ ] Criteria 1–10 each verified by an automated gate or a recorded manual smoke result
-- [ ] Any unverifiable criterion is recorded as an explicit follow-up gap
-- [ ] The plan notes confirm no CAPABILITY-MAP row was added (ask-first boundary untouched)
-- [ ] The `use-mobile` hook location deviation from the spec sketch is recorded
+- [x] Criteria 1–10 each verified by an automated gate or a recorded manual smoke result
+- [x] Any unverifiable criterion is recorded as an explicit follow-up gap
+- [x] The plan notes confirm no CAPABILITY-MAP row was added (ask-first boundary untouched)
+- [x] The `use-mobile` hook location deviation from the spec sketch is recorded
 
 **Verification:**
-- [ ] Manual review of `docs/plans/plan-app-shell-ux.md` and this file
-- [ ] `npm run build`, `npm run lint`, `npm test` all green
+- [x] Manual review of `docs/plans/plan-app-shell-ux.md` and this file
+- [x] `npm run build` + `npm run lint` green (frontend); `npm run typecheck` green (backend)
+- [ ] `npm test` green — deferred (destructive on the shared dev DB, see Task 14 note)
 
 **Dependencies:** Task 13, Task 14
 
@@ -468,9 +486,18 @@ one runtime check, deferred to Task 14 (no E2E harness). See the plan's Phase 4 
 
 **Estimated scope:** XS
 
+**Post-task note (2026-10-16):** criteria 1, 5, 7's data scope, 9 (contract) and 10 are
+covered by gates/inspection; the runtime-dependent parts of 3, 4, 6, 7 and the whole of
+2 and 8 are recorded as gaps in the plan's Phase 5 notes. No CAPABILITY-MAP row was added
+(`docs/CAPABILITY-MAP.md` is untouched by this work).
+
 ---
 
 ## Checkpoint: Complete
-- [ ] Success criteria 1–10 verified or gap recorded
-- [ ] No upgrade CTA, no persisted space state, no decorative chrome
-- [ ] Ready for human review
+- [x] Success criteria 1–10 verified or gap recorded
+- [x] No upgrade CTA, no persisted space state, no decorative chrome
+- [x] Ready for human review (pending: the browser smoke and backend suite below)
+
+> Open at review time: the 8-check browser smoke (Task 14) and `npm test` (Task 14) have
+> not been run — both are human-owned. Everything else is verified by `npm run build` +
+> `npm run lint` (frontend) and `npm run typecheck` (backend). See the plan's Phase 5 notes.

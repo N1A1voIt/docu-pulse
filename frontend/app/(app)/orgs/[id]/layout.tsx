@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useActiveSpace, useSpaces } from "@/lib/spaces";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -31,7 +32,7 @@ export default function SpaceLayout({
 
 function SpaceGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { status } = useSpaces();
+  const { status, reload } = useSpaces();
   const { activeSpaceId, activeSpace } = useActiveSpace();
 
   useEffect(() => {
@@ -51,12 +52,15 @@ function SpaceGate({ children }: { children: React.ReactNode }) {
 
   if (status === "error") {
     return (
-      <main className="mx-auto max-w-2xl p-8">
+      <main className="mx-auto max-w-2xl space-y-3 p-8">
         <Alert variant="destructive">
           <AlertDescription>
-            We couldn’t load your spaces. Return to Home and try again.
+            We couldn’t load your spaces.
           </AlertDescription>
         </Alert>
+        <Button onClick={reload} variant="outline">
+          Retry
+        </Button>
       </main>
     );
   }
