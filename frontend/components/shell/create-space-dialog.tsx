@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -15,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useSpaces } from "@/lib/spaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 interface CreateSpaceContextValue {
   /** Opens the one create-team dialog mounted in the shell. */
@@ -75,23 +75,11 @@ function CreateSpaceDialog({
     setName("");
   }, [onClose]);
 
-  useEffect(() => {
-    if (!open) return;
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 0);
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
-
-  if (!open) return null;
+  // Base UI owns opening/closing; Esc, the backdrop and the close button all
+  // arrive here, so a dismissal always clears the form state.
+  function handleOpenChange(next: boolean) {
+    if (!next) close();
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -111,41 +99,36 @@ function CreateSpaceDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-space-title"
+    <Modal
+      open={open}
+      onOpenChange={handleOpenChange}
+      title="Create team space"
+      initialFocus={inputRef}
     >
-      <div className="w-full max-w-sm space-y-4 rounded-lg bg-background p-6">
-        <h2 id="create-space-title" className="text-lg font-semibold">
-          Create team space
-        </h2>
-        <form className="flex flex-col gap-3" onSubmit={submit}>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Name</span>
-            <Input
-              ref={inputRef}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </label>
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={close}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={creating || name.trim() === ""}>
-              {creating ? "Creating…" : "Create"}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <form className="flex flex-col gap-3" onSubmit={submit}>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Name</span>
+          <Input
+            ref={inputRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </label>
+        {error && (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={creating || name.trim() === ""}>
+            {creating ? "Creating…" : "Create"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
