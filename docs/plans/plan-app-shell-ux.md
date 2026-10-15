@@ -221,14 +221,70 @@ Browser smoke is deferred to Task 14 (no E2E harness); items above are verified 
 
 ### Phase 5: Verification
 
-- [ ] Task 13: Frontend build + lint gate across all routes
-- [ ] Task 14: Run the 8-check manual smoke checklist
-- [ ] Task 15: Final review against success criteria 1–10; record follow-up gaps
+- [x] Task 13: Frontend build + lint gate across all routes
+- [ ] Task 14: Run the 8-check manual smoke checklist — human-owned; see notes
+- [x] Task 15: Final review against success criteria 1–10; record follow-up gaps
 
 ### Checkpoint: Complete
-- [ ] All 10 success criteria verified or gap recorded
-- [ ] No upgrade CTA, no persisted space state, no decorative chrome
-- [ ] Ready for human review
+- [x] All 10 success criteria verified or gap recorded
+- [x] No upgrade CTA, no persisted space state, no decorative chrome
+- [x] Ready for human review
+
+#### Phase 5 implementation notes (2026-10-16)
+
+1. **Gates green; the two human-owned checks are deferred.** `npm run build` (all 8
+   routes), `npm run lint`, and backend `npm run typecheck` pass. `npm test` was **not**
+   run: `DATABASE_URL_TEST` resolves to the same `localhost:5432/docupulse` database as
+   `DATABASE_URL`, and `resetSchema()` drops every table before re-migrating, so it is
+   destructive to the shared dev DB (2 users / 2 orgs). The `OrganizationForUser` case is
+   unchanged from Task 1, where it passed. The 8-check browser smoke stays with the human
+   (no E2E harness; adding one is ask-first). Both are recorded under "Follow-up gaps".
+2. **Review hardening (frontend, `frontend-ui-engineering`).** The independent Phase 3
+   review's three deferred accessibility/UX items in plan note 8 were fixed this phase:
+   - A shared `frontend/components/ui/modal.tsx` built on Base UI's `Dialog` now backs
+     both the create-team and invite dialogs. The hand-rolled overlays declared
+     `role="dialog" aria-modal="true"` but trapped no focus and restored none; the
+     primitive supplies the trap, Esc/backdrop dismissal, page-scroll lock, focus
+     restore, and (per its docs) the close control touch screen readers need. `Cancel`
+     and the new visible close button both route through the same open state.
+   - The space gate's `status: "error"` branch now renders a `Retry` button wired to
+     `useSpaces().reload()`, matching the `Skeleton`/`Alert`/retry the Members and
+     Invites routes already preserve, instead of only telling the user to go Home.
+3. **No backend change (`api-and-interface-design`).** The Task 1 contract
+   (`planName` + `role` on `GET /api/organizations`) already answers every question the
+   shell asks; verification surfaced nothing to add, so the endpoint is untouched.
+4. **Success criteria coverage.** Verified by gate or inspection: 1 (build+lint), 5
+   (plan chip reads backend `planName`), 9's contract shape (the additive
+   `OrganizationForUser`; the DB-run test is a gap), 10 (single `signOut`, redirect kept).
+   Runtime-dependent or structural-in-browser: 2, 3, 4, 6, 7, 8 — recorded as gaps below.
+   Inspection also confirmed no `localStorage`/`sessionStorage` of space state and no
+   upgrade/billing CTA anywhere in the frontend.
+5. **Deviations recorded.** `use-mobile` landed at `frontend/hooks/use-mobile.ts`
+   (the `hooks: @/hooks` alias), not `lib/` as the spec sketch showed — followed the CLI
+   output, per the plan's risk row. No row was added to `docs/CAPABILITY-MAP.md`
+   (untouched), same precedent as `SPEC-org-team-invites.md`.
+6. **Observation, deliberately not changed.** `components/ui/*` import `cn` from the
+   `"cn"` package while the shell components import it from `@/lib/utils` (which merely
+   re-exports the same `cn`). Both resolve identically; unifying them is churn, not a fix.
+
+**Follow-up gaps (carried, non-blocking):**
+
+- **Browser smoke (Task 14)** — human: fresh signup → Personal/`Free`/Documents locked;
+  create team → `Org`/Documents unlocked/no CTA; one-click switching + reload keeps the
+  route-derived space; ⌘K open → navigate → Esc → focus restore; rail at 1/2/3 spaces;
+  auth pages bare; signed-out `/` landing; signed-out `/orgs/[id]` → `/sign-in?next=…`.
+- **`npm test` (Task 14)** — run on a non-destructive database (either point
+  `DATABASE_URL_TEST` at a scratch DB *and* make `runMigrationScript()` target it, or run
+  it against a disposable environment). Expected green, including the `OrganizationForUser`
+  case from Task 1.
+- **Loading layout shift** — on a hard reload the shell renders bare until
+  `status === "ok"`, so the rail/bar pop in. Deferred (plan note 8); a static chrome
+  skeleton is the likely fix.
+- **Members/Invites scaffold dedup** — the two routes share a near-identical
+  load/retry scaffold. Extract a `useSpaceResource` hook only when a third space
+  resource appears, to avoid a two-use abstraction (plan note 8).
+- **Invite dialog field reset** — dismissing the invite dialog keeps the typed email
+  (only a successful invite clears it). Pre-existing; noted while touching the file.
 
 ## Risks and Mitigations
 
