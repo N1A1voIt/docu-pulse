@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 interface AcceptResult {
   ok: boolean;
@@ -37,7 +38,9 @@ function acceptOnce(token: string): Promise<AcceptResult> {
       return {
         ok: false,
         message: body?.message ?? body?.error ?? "Invitation invalid.",
-        signInPath: typeof body?.signInPath === "string" ? body.signInPath : null,
+        signInPath: safeRedirectPath(
+          typeof body?.signInPath === "string" ? body.signInPath : null,
+        ),
       };
     }
     return { ok: true, orgId: body?.organization?.id ?? null };
@@ -153,7 +156,9 @@ function AcceptContent() {
               </Alert>
               <div className="flex flex-wrap gap-2">
                 {signInPath && (
-                  <Button onClick={() => router.push(signInPath)}>
+                  <Button
+                    onClick={() => router.push(safeRedirectPath(signInPath) ?? "/sign-in")}
+                  >
                     Sign in as invited email
                   </Button>
                 )}

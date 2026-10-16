@@ -12,17 +12,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SocialProviderButton } from "@/components/auth/social-provider-button";
 import { AuthDivider } from "@/components/auth/auth-divider";
 import { PasswordField } from "@/components/auth/password-field";
-
-function safeNext(value: string | null): string {
-  if (!value) return "/";
-  if (!value.startsWith("/") || value.startsWith("//")) return "/";
-  return value;
-}
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = safeNext(searchParams.get("next"));
+  const next = safeRedirectPath(searchParams.get("next")) ?? "/";
   const oauthError = mapOAuthError(
     searchParams.get("error"),
     searchParams.get("error_description"),
