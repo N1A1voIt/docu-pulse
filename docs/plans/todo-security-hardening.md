@@ -103,17 +103,31 @@
 **Description:** Inspect Better Auth cookie behavior in dev and a production-like HTTPS setup; document required env/settings.
 
 **Acceptance criteria:**
-- [ ] Confirmed `httpOnly`, `Secure` in prod, `SameSite`.
-- [ ] Documented any config needed if Better Auth defaults differ.
+- [x] Confirmed `httpOnly`, `Secure` in prod, `SameSite`.
+- [x] Documented any config needed if Better Auth defaults differ.
 
 **Verification:**
-- [ ] Manual dev check + prod-like check (or documented blocker).
+- [x] Manual dev check + prod-like check (or documented blocker).
 
 **Dependencies:** Task 4
+
+**Notes (2026-10-16):** Runtime-verified Better Auth v1.7.7 emits
+`SameSite=Lax`, `HttpOnly`, `Path=/`, `Secure` derived from `BETTER_AUTH_URL`
+(dev `http://localhost:3001` → `secure=false`; https → `__Secure-` prefix +
+`secure=true`). Defaults are now pinned explicitly in
+`backend/src/auth/auth.ts` (`advanced.useSecureCookies` +
+`advanced.defaultCookieAttributes`) so they cannot drift. Deployment topology
+confirmed **same-site**, so `Lax` is retained as the CSRF defence; an
+`Origin`/`Referer` assertion was additionally added on the app's own
+state-changing routes (`backend/src/server.ts`, tested in
+`backend/tests/security.csrf.test.ts`). Full record:
+`docs/reviews/frontend-security-review.md` §7.
 
 **Files likely touched:**
 - `docs/plans/todo-security-hardening.md`
 - `docs/plans/plan-security-hardening.md`
+- `backend/src/auth/auth.ts`
+- `backend/src/server.ts`
 
 **Estimated scope:** XS
 
@@ -124,18 +138,34 @@
 **Description:** Run the native audits against committed lockfiles, classify by reachability, document deferrals with review dates. No `--force` unless reviewed package-by-package.
 
 **Acceptance criteria:**
-- [ ] Backend audit findings triaged (vitest/tinypool).
-- [ ] Frontend audit findings triaged (shadcn/ts-morph/fast-glob).
-- [ ] Deferrals documented.
+- [x] Backend audit findings triaged (vitest/tinypool).
+- [x] Frontend audit findings triaged (shadcn/ts-morph/fast-glob).
+- [x] Deferrals documented.
 
 **Verification:**
-- [ ] `npm audit` output saved/summarized in docs.
-- [ ] Build/tests still green.
+- [x] `npm audit` output saved/summarized in docs.
+- [x] Build/tests still green.
 
 **Dependencies:** None
 
+**Notes (2026-10-16):**
+- Backend: 2 critical + 1 moderate traced to `vitest@3.2.7`
+  (`@vitest/mocker` path-traversal, GHSA-82fw-gwwq-j7x9 patched in 4.1.11). Root
+  cause: `better-auth` declares an *optional peer* on `vitest`, so `--omit=dev`
+  counted it. Upgraded `vitest` to `^4.1.12`; backend audits now report **0**.
+- Frontend: `shadcn` moved to `devDependencies`; `npm audit --omit=dev` → **0**.
+  The remaining 9 dev-only highs are deferred — `braces` is already 3.0.3 yet
+  carries a `*`-range advisory with no upstream fix, so no `overrides`/`--force`
+  can resolve it. Re-review when `shadcn`/`eslint-config-next` ship updates.
+- Lockfiles are now committed and CI enforces frozen installs + a production
+  audit gate (`.github/workflows/ci.yml`); see F11 in the review doc.
+
 **Files likely touched:**
 - `docs/plans/todo-security-hardening.md`
+- `docs/reviews/frontend-security-review.md`
+- `backend/package.json`
+- `frontend/package.json`
+- `.github/workflows/ci.yml`
 
 **Estimated scope:** S
 

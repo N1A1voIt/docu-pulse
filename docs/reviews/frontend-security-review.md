@@ -26,7 +26,7 @@ STRIDE lens applied below; findings are grouped by severity.
 | ID | Sev | Title | Primary location | Status |
 |---|---|---|---|---|
 | F1 | **High** | No CSP or security headers on the Next app (XSS/clickjacking surface) | `frontend/next.config.ts` | **Fixed** |
-| F2 | **Medium** | Cross-site session cookie + no CSRF token on state-changing API calls | `lib/api.ts`, `app/(auth)/invites/accept` | Open |
+| F2 | **Medium** | Cross-site session cookie + no CSRF token on state-changing API calls | `lib/api.ts`, `app/(auth)/invites/accept` | **Fixed** (see 7) |
 | F3 | **Medium** | `shadcn` CLI shipped as a runtime dependency (9 high audit findings) | `package.json:21`, lockfile | **Fixed** |
 | F4 | **Medium** | Invite token carried in the URL query string; no `Referrer-Policy` | `app/(auth)/invites/accept/page.tsx:63` | **Partially fixed** (see 7) |
 | F5 | **Low** | `next` redirect guard is string-based, not origin-based | `app/(auth)/sign-in/page.tsx:16` |
@@ -35,7 +35,7 @@ STRIDE lens applied below; findings are grouped by severity.
 | F8 | **Low** | `document.cookie` sidebar write lacks `SameSite`/`Secure` | `components/ui/sidebar.tsx:85` |
 | F9 | **Info** | Server error strings rendered directly in UI | `lib/spaces.tsx`, invites/members pages |
 | F10 | **Info** | No install-script policy; no `middleware.ts` for nonces | repo root |
-| F11 | **High** | No lockfile tracked anywhere — installs are non-reproducible | root `.gitignore` |
+| F11 | **High** | No lockfile tracked anywhere — installs are non-reproducible | root `.gitignore` | **Fixed** (see 7) |
 
 Positives that must not regress: no `dangerouslySetInnerHTML`/`innerHTML`/`eval`,
 no auth tokens in `localStorage`/`sessionStorage`, `.env*` gitignored, only
@@ -123,6 +123,22 @@ Remediation / verification (overlaps backend open Task 5):
   assertion middleware on state-changing routes, or a double-submit token) for
   the org/invite endpoints.
 - Record the outcome in `docs/plans/todo-security-hardening.md` Task 5.
+
+> **Resolved (2026-10-16):** topology confirmed as same-site subdomains, so the
+> posture stays `SameSite=Lax`. Applied both hardening steps:
+> 1. Cookie attributes are now **pinned explicitly** in `backend/src/auth/auth.ts`
+>    (`advanced.useSecureCookies` + `advanced.defaultCookieAttributes:
+>    { httpOnly, sameSite: "lax", secure, path: "/" }`) instead of relying on
+>    library defaults. Verified at runtime: dev (`http://localhost:3001`) emits
+>    `better-auth.session_token` with `secure=false`; https emits
+>    `__Secure-better-auth.session_token` with `secure=true`; both `SameSite=Lax`,
+>    `HttpOnly`, `Path=/`.
+> 2. An **Origin/Referer assertion** hook (`backend/src/server.ts`) now rejects
+>    any state-changing request that carries a session cookie and an
+>    `Origin`/`Referer` outside `trustedOrigins` with `403 FORBIDDEN`. It skips
+>    safe methods and `/api/auth/*` (which Better Auth already origin-checks), and
+>    is fail-closed when a cookie is present but neither header is.
+> Covered by `backend/tests/security.csrf.test.ts` (7 cases).
 
 ### F3 — Medium: `shadcn` CLI is a runtime dependency (9 high audit findings)
 
@@ -279,6 +295,14 @@ Remediation:
 This is a repo-wide policy change (it affects the backend too), so it is
 recorded as a proposal rather than applied on this frontend branch — see §7.
 
+> **Resolved (2026-10-16):** the root `.gitignore` no longer ignores
+> `package-lock.json`, and both lockfiles are now committed. The backend lock was
+> regenerated so `vitest` is correctly attributed (see §7). A CI workflow
+> (`.github/workflows/ci.yml`) installs **frozen** and gates on
+> lint/typecheck/build/tests plus `npm audit --omit=dev --audit-level=high`.
+> Verified: `npm ci` succeeds in both packages and `npm audit --omit=dev` reports
+> **0 vulnerabilities** in both.
+
 ---
 
 ## 4. Positive findings (keep these)
@@ -301,10 +325,11 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 ## 5. Suggested remediation order
 
 1. **F1** headers/CSP + F4 `Referrer-Policy` — **DONE** (`next.config.ts` `headers()`; see §7).
-2. **F2** decide cookie topology / CSRF (with backend Task 5) — **investigated**, awaiting topology decision (see §7).
-3. **F3** move `shadcn` to devDependencies — **DONE** (production graph clean); dev-only advisories deferred (see §7). Install-script policy (F10) and lockfile tracking (F11) remain.
-4. **F5/F6** extract and apply one redirect-safety helper.
-5. **F7/F8/F9** hardening hygiene + backend error-body review.
+2. **F2** cookie topology / CSRF — **DONE** (same-site confirmed; cookies pinned + Origin assertion; see §7).
+3. **F3** move `shadcn` to devDependencies — **DONE** (production graph clean); dev-only advisories deferred (see §7).
+4. **F11** track lockfiles + frozen-install CI — **DONE** (see §7). Install-script policy (F10) remains.
+5. **F5/F6** extract and apply one redirect-safety helper.
+6. **F7/F8/F9** hardening hygiene + backend error-body review.
 
 ## 6. Review checklist status (`security-and-hardening` §Verification, frontend half)
 
@@ -315,8 +340,8 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 - [ ] Rate limiting backed by shared store (frontend relies on API) — **n/a / backend**
 - [ ] Server-side URL fetches validated against allowlist — **n/a (no frontend SSR fetch)**
 - [ ] LLM/model output validated — **n/a (no AI features)**
-- [~] Dependency audit has no unmitigated reachable critical/high — **production: met (`--omit=dev` = 0); dev/build tooling: deferred (F3, no upstream fix for `braces`)**
-- [ ] The authoritative lockfile is committed and CI installs frozen — **not met (F11)**
+- [x] Dependency audit has no unmitigated reachable critical/high — **met for the production graph, both packages (`--omit=dev` = 0)**; remaining dev-only advisories are deferred with rationale (F3)
+- [x] The authoritative lockfile is committed and CI installs frozen — **met** (F11: lockfiles committed + `.github/workflows/ci.yml` runs `npm ci`)
 - [ ] Error responses don't expose internals — **client ok; confirm API bodies (F9)**
 
 ## 7. Remediation log
@@ -386,7 +411,7 @@ lockfile with optional platform bindings, so it was not applied.
 F11, which is the more serious supply-chain gap and supersedes the "audit against
 the committed lockfile" step.
 
-### 2026-10-16 — F2 investigation (awaiting topology decision)
+### 2026-10-16 — F2 investigation + fix (`backend/src/auth/auth.ts`, `backend/src/server.ts`)
 
 Static inspection of the installed dependencies and backend config:
 
@@ -427,13 +452,55 @@ Proposed hardening (touches auth/CORS, so it needs sign-off — see §8):
 Not applied yet — the chosen topology (and therefore whether (2) is the right
 shape vs. a double-submit token) is a product/deploy decision.
 
-## 8. F2 decision requested
+**Applied (topology confirmed same-site):**
 
-F2's fix depends on one answer: **are the app and API served from the same
-registrable domain in production** (e.g. `app.example.com` + `api.example.com`)?
+1. `backend/src/auth/auth.ts` — added `advanced.useSecureCookies` and
+   `advanced.defaultCookieAttributes` (`httpOnly: true`, `sameSite: "lax"`,
+   `secure: <https>`, `path: "/"`), derived from `BETTER_AUTH_URL`. The posture is
+   now explicit and cannot drift with a Better Auth upgrade. Runtime-verified:
+   dev emits `better-auth.session_token` (`secure=false`), https emits
+   `__Secure-better-auth.session_token` (`secure=true`); both `SameSite=Lax`,
+   `HttpOnly`, `Path=/`.
+2. `backend/src/server.ts` — added an `onRequest` hook that rejects (403
+   `FORBIDDEN`) any non-safe request carrying a session cookie whose
+   `Origin`/`Referer` is outside `trustedOrigins`, or that carries neither header.
+   Safe methods and `/api/auth/*` (already origin-checked by Better Auth) are
+   exempt. This is defence in depth so the org/invite routes no longer depend on
+   `SameSite` alone.
+3. `backend/tests/security.csrf.test.ts` — 7 cases covering untrusted origin,
+   missing origin, Referer fallback, trusted origin passthrough, safe methods,
+   cookie-less requests, and the `/api/auth/*` exemption.
 
-- **Yes (same-site)** → keep `SameSite=Lax`; apply the low-risk hardening (1)+(2)+(3)
-  above. No CSRF tokens needed because `Lax` already blocks cross-site writes.
-- **No (truly cross-site)** → cookie must be `SameSite=None; Secure`; then (2)
-  becomes mandatory and should be a double-submit CSRF token, plus the third-party
-  cookie-support caveat documented.
+### 2026-10-16 — F3 tail + F11 (backend deps, lockfiles, CI)
+
+- **Backend dev advisory cleared.** `npm audit --omit=dev` reported 2 critical +
+  1 moderate from `vitest@3.2.7`. Cause: `better-auth` declares an *optional peer*
+  on `vitest`, so npm counts the runner in the production graph — which also
+  exposed a stale lock where `vitest` lacked its `dev` flag. Fixed by upgrading
+  `vitest` to `^4.1.12` (the advisory
+  [GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9) is
+  patched in 4.1.11; the 3.x line has no fix) and reconciling the lock. Result:
+  `npm audit` and `npm audit --omit=dev` both report **0** for the backend; the
+  full suite (13 files / 60 tests) passes on vitest 4. Note: vitest 4 requires
+  Node `^20 || ^22 || >=24` — CI pins Node 22; local Node 23 only warns.
+- **Lockfiles tracked.** Removed `package-lock.json` from the root `.gitignore`
+  and committed `frontend/package-lock.json` + `backend/package-lock.json`.
+  `npm ci` verified successful in both packages (frozen install).
+- **CI added** (`.github/workflows/ci.yml`): on every PR/push to `develop`/`main`,
+  `npm ci` (frozen) then — frontend: lint, typecheck, build, `npm audit --omit=dev
+  --audit-level=high`; backend: typecheck, tests against a `postgres:16` service,
+  and the same audit gate.
+
+## 8. Decision recorded (2026-10-16)
+
+**Deployment topology: app and API are same-site** (`app.example.com` +
+`api.example.com`, subdomains of one registrable domain). Therefore:
+
+- Session cookie stays **`SameSite=Lax; Secure; HttpOnly; Path=/`** — no
+  `SameSite=None`, no double-submit token required.
+- The `Origin`/`Referer` assertion on state-changing non-auth routes is now in
+  place as defence in depth.
+- **Requirement to preserve:** keep app and API under one registrable domain. A
+  future move to genuinely cross-site hosting invalidates the `Lax` CSRF defence
+  and must be accompanied by a CSRF-token scheme and the third-party-cookie
+  caveats.
