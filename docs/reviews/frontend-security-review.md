@@ -29,8 +29,8 @@ STRIDE lens applied below; findings are grouped by severity.
 | F2 | **Medium** | Cross-site session cookie + no CSRF token on state-changing API calls | `lib/api.ts`, `app/(auth)/invites/accept` | **Fixed** (see 7) |
 | F3 | **Medium** | `shadcn` CLI shipped as a runtime dependency (9 high audit findings) | `package.json:21`, lockfile | **Fixed** |
 | F4 | **Medium** | Invite token carried in the URL query string; no `Referrer-Policy` | `app/(auth)/invites/accept/page.tsx:63` | **Partially fixed** (see 7) |
-| F5 | **Low** | `next` redirect guard is string-based, not origin-based | `app/(auth)/sign-in/page.tsx:16` |
-| F6 | **Low** | Server-supplied `signInPath` navigated without validation | `app/(auth)/invites/accept/page.tsx:40,156` |
+| F5 | **Low** | `next` redirect guard is string-based, not origin-based | `app/(auth)/sign-in/page.tsx:16` | **Fixed** (see 7) |
+| F6 | **Low** | Server-supplied `signInPath` navigated without validation | `app/(auth)/invites/accept/page.tsx:40,156` | **Fixed** (see 7) |
 | F7 | **Low** | Avatar `<img src={user.image}>` — unvalidated remote URL | `components/shell/global-bar.tsx:62` |
 | F8 | **Low** | `document.cookie` sidebar write lacks `SameSite`/`Secure` | `components/ui/sidebar.tsx:85` |
 | F9 | **Info** | Server error strings rendered directly in UI | `lib/spaces.tsx`, invites/members pages |
@@ -224,6 +224,13 @@ return url.pathname + url.search + url.hash;
 
 Duplication across the two pages is a maintenance hazard — extract one helper.
 
+> **Resolved (2026-10-16):** extracted a single `safeRedirectPath` helper
+> (`frontend/lib/safe-redirect.ts`) implementing exactly the origin assertion
+> above, now imported by both `sign-in/page.tsx` and `sign-up/page.tsx`. The
+> brittle `startsWith` guard is gone. It returns `null` for missing/unsafe
+> values so each caller picks its own fallback (`?? "/"` on the auth pages).
+> See §7 for the verification matrix.
+
 ### F6 — Low: server-supplied `signInPath` navigated unvalidated
 
 `app/(auth)/invites/accept/page.tsx:40` reads `body.signInPath` from the API
@@ -231,6 +238,16 @@ response and `:156` does `router.push(signInPath)` with no validation. Today the
 value is server-controlled and well-behaved, but the client treats a
 network-supplied string as a safe internal route. Apply the same `safeNext`
 guard client-side and allowlist the path server-side.
+
+> **Resolved (2026-10-16):** `signInPath` is now passed through
+> `safeRedirectPath` at the boundary where it enters state
+> (`invites/accept/page.tsx`), so an off-origin or `javascript:` value becomes
+> `null` and the "Sign in as invited email" button is simply not rendered. The
+> `router.push` call also re-runs the guard with a `/sign-in` fallback as
+> defence in depth. Server-side the value is built from a fixed constant
+> template (`/sign-in?next=` + an `encodeURIComponent`'d internal path in
+> `backend/src/invitations/invitations.service.ts`), so it is already
+> origin-constrained by construction; no backend change was needed. See §7.
 
 ### F7 — Low: unvalidated avatar URL rendered into `<img>`
 
@@ -328,7 +345,7 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 2. **F2** cookie topology / CSRF — **DONE** (same-site confirmed; cookies pinned + Origin assertion; see §7).
 3. **F3** move `shadcn` to devDependencies — **DONE** (production graph clean); dev-only advisories deferred (see §7).
 4. **F11** track lockfiles + frozen-install CI — **DONE** (see §7). Install-script policy (F10) remains.
-5. **F5/F6** extract and apply one redirect-safety helper.
+5. **F5/F6** extract and apply one redirect-safety helper — **DONE** (`lib/safe-redirect.ts`; see §7).
 6. **F7/F8/F9** hardening hygiene + backend error-body review.
 
 ## 6. Review checklist status (`security-and-hardening` §Verification, frontend half)
@@ -342,6 +359,7 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 - [ ] LLM/model output validated — **n/a (no AI features)**
 - [x] Dependency audit has no unmitigated reachable critical/high — **met for the production graph, both packages (`--omit=dev` = 0)**; remaining dev-only advisories are deferred with rationale (F3)
 - [x] The authoritative lockfile is committed and CI installs frozen — **met** (F11: lockfiles committed + `.github/workflows/ci.yml` runs `npm ci`)
+- [x] Client-side redirect targets are origin-validated before `router.push`/`router.replace` — **met** (F5/F6: `safeRedirectPath`, covered by `frontend/lib/safe-redirect.test.ts`; CI runs `npm test`)
 - [ ] Error responses don't expose internals — **client ok; confirm API bodies (F9)**
 
 ## 7. Remediation log
@@ -490,6 +508,70 @@ shape vs. a double-submit token) is a product/deploy decision.
   `npm ci` (frozen) then — frontend: lint, typecheck, build, `npm audit --omit=dev
   --audit-level=high`; backend: typecheck, tests against a `postgres:16` service,
   and the same audit gate.
+
+### 2026-10-16 — F5 + F6 (`frontend/lib/safe-redirect.ts` + auth/invite pages)
+
+**Cause.** Two client components fed network/URL-derived strings straight to
+`router.replace`/`router.push`. Next's own `useRouter` reference warns that
+untrusted URLs must not be passed to the router because a `javascript:` URL is
+executed in the page context. The existing `safeNext` guard on the sign-in/up
+pages was a string heuristic (`startsWith("/") && !startsWith("//")`) — brittle
+against backslash and encoding variants — and was duplicated across both pages.
+The invite-accept page applied no guard at all.
+
+**Fix.**
+- New `frontend/lib/safe-redirect.ts` exports `safeRedirectPath(value)`. It
+  resolves the value against the app's own origin (`new URL(value, origin)`) and
+  returns `pathname + search + hash` only when `url.origin === origin`; otherwise
+  `null`. This rejects `https://evil.com`, `//evil.com`, `/\evil.com`,
+  `\\evil.com`, `javascript:`/`data:` and unparsable input, while keeping
+  legitimate internal paths (including `/%2F%2Fevil.com`, which stays
+  same-origin and therefore safe). During SSR (no `window`) it resolves against a
+  fixed fallback origin, so root-relative paths are accepted and absolute ones
+  rejected — matching the client for the internally-generated values we pass.
+- `sign-in/page.tsx` and `sign-up/page.tsx` (F5): the duplicated `safeNext` is
+  deleted; both now `safeRedirectPath(searchParams.get("next")) ?? "/"`.
+- `invites/accept/page.tsx` (F6): `signInPath` from the API response is passed
+  through `safeRedirectPath` as it enters state, so an unsafe value becomes
+  `null` and the "Sign in as invited email" button is not rendered. The
+  `router.push` call re-runs the guard with a `/sign-in` fallback as defence in
+  depth. The server-side producer already builds the path from a fixed constant
+  template (`backend/src/invitations/invitations.service.ts`), so it is
+  origin-constrained by construction and needed no change.
+
+**Verification performed** (`safe-redirect.ts` compiled from source, `window`
+origin `http://localhost:3000`; all 16 cases pass):
+
+| Input | Result |
+|---|---|
+| `/orgs/abc` | `/orgs/abc` |
+| `/orgs/abc?tab=members#top` | `/orgs/abc?tab=members#top` |
+| `/sign-in?next=%2Finvites%2Faccept%3Ftoken%3Dx` | unchanged |
+| `http://localhost:3000/ok` | `/ok` (same-origin normalised) |
+| `/%2F%2Fevil.com` | unchanged (stays same-origin → safe) |
+| `//evil.com` | `null` |
+| `https://evil.com` | `null` |
+| `/\evil.com` | `null` |
+| `\\evil.com` | `null` |
+| `javascript:alert(1)` / `JaVaScRiPt:alert(1)` | `null` |
+| `data:text/html,<script>1</script>` | `null` |
+| `""` / `null` / `undefined` | `null` |
+
+Also: SSR (no `window`) — `/a` → `/a`, `//evil.com` → `null`. `npm run
+typecheck`, `npm run lint` and `npm run build` (11 routes) all green.
+
+**Committed test (2026-10-16, follow-up applied same day):** the matrix above is
+now a committed vitest suite — `frontend/lib/safe-redirect.test.ts`, 19 cases
+(the same-origin allow list plus every rejected form, in both browser and SSR
+modes). It runs via `npm test` (`vitest run`), and the CI frontend job
+(`.github/workflows/ci.yml`) now runs `npm test` between typecheck and build.
+Setup notes: `vitest@^4.1.12` added to `devDependencies` (matches the backend,
+requires Node `^20 || ^22 || >=24`, so CI's Node 22 is fine). The lockfile was
+updated with **npm 11** because npm 10.9.x hit an arborist crash
+(`Cannot read properties of null (reading 'edgesOut')` in `loadPeerSet`) on
+vitest's optional-peer graph; the result stays `lockfileVersion: 3` and a
+frozen `npm ci` was re-verified with npm 10 to confirm CI compatibility. No new
+production dependency and `npm audit --omit=dev` remains **0**.
 
 ## 8. Decision recorded (2026-10-16)
 
