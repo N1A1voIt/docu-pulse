@@ -9,6 +9,11 @@ if (!betterAuthSecret && process.env.NODE_ENV === "production") {
   throw new Error("BETTER_AUTH_SECRET is required in production");
 }
 
+// Session cookies must only carry the Secure attribute (and the __Secure-
+// name prefix) over HTTPS. Production sets BETTER_AUTH_URL to an https origin;
+// local development talks to http://localhost.
+const secureCookies = env.betterAuthUrl.toLowerCase().startsWith("https://");
+
 const pool = new Pool({
   connectionString: env.databaseUrl,
   options: "-c search_path=auth",
@@ -57,6 +62,26 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
+  },
+  advanced: {
+    // Pin the session-cookie posture explicitly rather than relying on Better
+    // Auth defaults, so a dependency upgrade cannot silently weaken it (F2).
+    //
+    // SameSite=Lax is the CSRF defence for cookie-authenticated routes: it
+    // stops the browser attaching the session cookie to cross-site
+    // state-changing requests (POST/DELETE). It uses *site* scope, so it keeps
+    // working when the app and API live on subdomains of one registrable
+    // domain (app.example.com <-> api.example.com) — the supported topology.
+    // A genuinely cross-site deployment would need SameSite=None, which removes
+    // this defence and would require CSRF tokens; see
+    // docs/plans/todo-security-hardening.md.
+    useSecureCookies: secureCookies,
+    defaultCookieAttributes: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: secureCookies,
+      path: "/",
+    },
   },
   socialProviders,
   databaseHooks: {
