@@ -23,12 +23,12 @@ STRIDE lens applied below; findings are grouped by severity.
 
 ## 2. Findings summary
 
-| ID | Sev | Title | Primary location |
-|---|---|---|---|
-| F1 | **High** | No CSP or security headers on the Next app (XSS/clickjacking surface) | `frontend/next.config.ts` |
-| F2 | **Medium** | Cross-site session cookie + no CSRF token on state-changing API calls | `lib/api.ts`, `app/(auth)/invites/accept` |
-| F3 | **Medium** | `shadcn` CLI shipped as a runtime dependency (9 high audit findings) | `package.json:21`, lockfile |
-| F4 | **Medium** | Invite token carried in the URL query string; no `Referrer-Policy` | `app/(auth)/invites/accept/page.tsx:63` |
+| ID | Sev | Title | Primary location | Status |
+|---|---|---|---|---|
+| F1 | **High** | No CSP or security headers on the Next app (XSS/clickjacking surface) | `frontend/next.config.ts` | **Fixed** |
+| F2 | **Medium** | Cross-site session cookie + no CSRF token on state-changing API calls | `lib/api.ts`, `app/(auth)/invites/accept` | Open |
+| F3 | **Medium** | `shadcn` CLI shipped as a runtime dependency (9 high audit findings) | `package.json:21`, lockfile | Open |
+| F4 | **Medium** | Invite token carried in the URL query string; no `Referrer-Policy` | `app/(auth)/invites/accept/page.tsx:63` | **Partially fixed** (see 7) |
 | F5 | **Low** | `next` redirect guard is string-based, not origin-based | `app/(auth)/sign-in/page.tsx:16` |
 | F6 | **Low** | Server-supplied `signInPath` navigated without validation | `app/(auth)/invites/accept/page.tsx:40,156` |
 | F7 | **Low** | Avatar `<img src={user.image}>` — unvalidated remote URL | `components/shell/global-bar.tsx:62` |
@@ -77,6 +77,16 @@ Remediation:
   DevTools (the `security-and-hardening` verification step calls for exactly
   this).
 - HSTS belongs at the edge/CDN for the app origin.
+
+> **Resolved (2026-10-16):** static CSP + headers added in `frontend/next.config.ts`
+> `headers()`. A **nonce** was chosen against deliberately: the CSP guide states
+> nonce-based CSP requires dynamic rendering and is incompatible with Partial
+> Prerendering, and this app runs `cacheComponents: true` (PPR by default), so a
+> nonce would strip the prerendered shell's scripts. The static policy uses
+> `script-src 'self' 'unsafe-inline'` (Next's inline bootstrap scripts need it
+> without a nonce) and still locks down `object-src`, `base-uri`, `form-action`,
+> `frame-ancestors` and the connect/img/font origins. See §7 and the config's
+> header comment.
 
 ### F2 — Medium: Cross-site session cookie and CSRF posture
 
@@ -158,6 +168,13 @@ Remediation:
 - Consider moving the token to a POST body for the accept call (backend change),
   or make tokens single-use and short-lived (verify current backend behaviour).
 
+> **Partially resolved (2026-10-16):** `Referrer-Policy: strict-origin-when-cross-origin`
+> is now set on app responses (F1 change), so a cross-origin navigation from the
+> accept page sends only the origin — the token no longer leaks in `Referer` to
+> third parties. Still open: strip the token from the address bar after a
+> successful accept (`history.replaceState`) and/or move it out of the query
+> string. Tracked as follow-up in §7.
+
 ### F5 — Low: `next` redirect guard is string-based
 
 `safeNext` (`app/(auth)/sign-in/page.tsx:16-20`, duplicated in `sign-up`) allows
@@ -236,7 +253,7 @@ carry stack traces/SQL text.
 
 ## 5. Suggested remediation order
 
-1. **F1** headers/CSP + F4 `Referrer-Policy` (one `next.config.ts`/middleware change, biggest risk reduction).
+1. **F1** headers/CSP + F4 `Referrer-Policy` — **DONE** (`next.config.ts` `headers()`; see §7).
 2. **F2** decide cookie topology / CSRF (with backend Task 5).
 3. **F3** move `shadcn` to devDependencies, triage audit, add install-script policy (F10).
 4. **F5/F6** extract and apply one redirect-safety helper.
@@ -244,7 +261,7 @@ carry stack traces/SQL text.
 
 ## 6. Review checklist status (`security-and-hardening` §Verification, frontend half)
 
-- [ ] Security headers present on app responses (F1) — **not met**
+- [x] Security headers present on app responses (F1) — **met** (verified 2026-10-16)
 - [ ] No secrets in source/history — **met**
 - [x] No `dangerouslySetInnerHTML`/`eval` with untrusted data — **met**
 - [ ] All user input validated at the boundary — **met for forms; server is the boundary**
@@ -253,3 +270,51 @@ carry stack traces/SQL text.
 - [ ] LLM/model output validated — **n/a (no AI features)**
 - [ ] Dependency audit has no unmitigated reachable critical/high — **not met (F3)**
 - [ ] Error responses don't expose internals — **client ok; confirm API bodies (F9)**
+
+## 7. Remediation log
+
+### 2026-10-16 — F1 + F4 (`frontend/next.config.ts`)
+
+Added an async `headers()` returning, for every route:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-inline'[ 'unsafe-eval' in dev]; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: <known avatar hosts>; font-src 'self'; connect-src 'self' <API origin>; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'[; upgrade-insecure-requests in prod]` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (prod only) |
+
+**Why a static CSP, not a nonce:** the CSP guide states nonce-based CSP needs
+dynamic rendering and is incompatible with Partial Prerendering; this app runs
+`cacheComponents: true` (PPR by default). A nonce would leave the static
+shell's scripts un-nonced and break hydration. Tightening to nonce/hash CSP is
+a follow-up **gated on dropping `cacheComponents`**.
+
+**Verification performed:**
+- `npm run build` — succeeds; 11 routes (static + partial prerender) generated.
+- `next start` on a scratch port — production response carries the CSP (no
+  `'unsafe-eval'`, with `upgrade-insecure-requests` + HSTS); the running `next dev`
+  server carries the dev variant (`'unsafe-eval'`, no upgrade directive). The
+  config evaluates `NODE_ENV` correctly in each server process.
+- Rendered HTML inspected: all `<script src>` are same-origin
+  (`/_next/static/...`), inline bootstrap `<script>` tags are present (hence
+  `'unsafe-inline'`), and **no external subresource origins** are referenced, so
+  the policy matches real output.
+- No Chrome DevTools MCP is configured in this environment, so the DevTools
+  console check from the skill was substituted with the header + HTML inspection
+  above; a browser console pass is still recommended before/at launch.
+
+**Known residual:** `script-src`/`style-src` include `'unsafe-inline'`, so an
+injected inline script would still run. This is accepted only because the app
+has no raw-HTML sink and React escapes all output; the nonce/hash upgrade is the
+way to remove it.
+
+**Follow-ups created by this change:**
+- Strip the invite token from the URL after accept (`history.replaceState`) — F4 tail.
+- Verify OAuth avatars render (CSP `img-src` allowlist covers
+  `*.googleusercontent.com`, `avatars.githubusercontent.com`, `*.microsoft.com`);
+  adding a provider means extending the allowlist.
+- Consider `poweredByHeader: false` and moving CSP to the CDN/edge alongside HSTS
+  when a CDN terminates TLS.
