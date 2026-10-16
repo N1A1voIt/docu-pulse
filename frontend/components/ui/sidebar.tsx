@@ -7,6 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { serializeCookie } from "@/lib/cookies"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -81,8 +82,14 @@ function SidebarProvider({
         _setOpen(openState)
       }
 
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      // This sets the cookie to keep the sidebar state. It is non-sensitive UI
+      // state, but we still route it through serializeCookie so it carries
+      // SameSite=Lax and (over HTTPS) Secure — the pattern shouldn't be copied
+      // onto a real cookie without them (F8).
+      document.cookie = serializeCookie(SIDEBAR_COOKIE_NAME, String(openState), {
+        maxAgeSeconds: SIDEBAR_COOKIE_MAX_AGE,
+        secure: window.location.protocol === "https:",
+      })
     },
     [setOpenProp, open]
   )

@@ -13,7 +13,7 @@ import {
   revokeInvitation,
   listMembers,
 } from "./invitations/invitations.service.js";
-import { InvitationError } from "./invitations/invitations.types.js";
+import { toPublicError } from "./http/public-error.js";
 
 const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -131,10 +131,14 @@ export async function buildServer() {
   }
 
   function sendInvitationError(reply: any, err: unknown) {
-    if (err instanceof InvitationError) {
-      return reply.status(err.status).send({ error: err.code, message: err.message, ...(err.extra ?? {}) });
+    const { status, body } = toPublicError(err);
+    if (status >= 500) {
+      // Log the real error server-side only; never echo it to the client (F9).
+      // Deliberately excludes the request URL — invite tokens travel in the
+      // path (F4), and a secret must never reach the logs.
+      console.error("[api] unhandled error", err);
     }
-    return reply.status(500).send({ error: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "Unknown" });
+    return reply.status(status).send(body);
   }
 
   app.get("/api/organizations", async (request, reply) => {

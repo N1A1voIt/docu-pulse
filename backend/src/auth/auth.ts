@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { env } from "../config/env.js";
 import { pool as publicPool } from "../db/pool.js";
 import { createPersonalOrganization } from "../organizations/organizations.service.js";
+import { sanitizedImageUpdate } from "./avatar-url.js";
 
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
 if (!betterAuthSecret && process.env.NODE_ENV === "production") {
@@ -87,6 +88,10 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        // Persist only https avatar URLs (F7). Runs before Better Auth writes
+        // the user, so the stored row — and therefore the `user.image` the
+        // shell renders from the session — can only hold a safe URL.
+        before: async (user) => sanitizedImageUpdate(user),
         after: async (user) => {
           const normalizedName = user.name?.trim() || null;
           const res = await publicPool.query<{ id: string }>(
@@ -99,6 +104,11 @@ export const auth = betterAuth({
           const domainUserId = res.rows[0].id;
           await createPersonalOrganization(domainUserId, normalizedName);
         },
+      },
+      update: {
+        // Same guard for profile updates. A no-op when the update carries no
+        // image, so an unrelated change cannot wipe a stored avatar.
+        before: async (user) => sanitizedImageUpdate(user),
       },
     },
   },
