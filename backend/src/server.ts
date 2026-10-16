@@ -15,6 +15,18 @@ import {
 } from "./invitations/invitations.service.js";
 import { InvitationError } from "./invitations/invitations.types.js";
 
+const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function originFromReferer(referer: string | string[] | undefined): string | null {
+  const value = Array.isArray(referer) ? referer[0] : referer;
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 function isHttpsRequest(request: { protocol?: string; headers: Record<string, unknown> }): boolean {
   if (request.protocol === "https") return true;
   if (env.trustProxy) {
@@ -46,6 +58,25 @@ export async function buildServer() {
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  });
+
+  // CSRF defence in depth for the app's own state-changing routes. Better Auth
+  // origin-checks /api/auth/*, but these Fastify routes previously relied on
+  // SameSite=Lax alone; assert Origin/Referer here too so a future cookie
+  // change cannot silently open them up (F2). Scoped to cookie-bearing
+  // requests — token-less callers still reach the normal 401 path.
+  app.addHook("onRequest", async (request, reply) => {
+    if (CSRF_SAFE_METHODS.has(request.method)) return;
+    if (request.url.startsWith("/api/auth/")) return;
+    if (!request.headers.cookie) return;
+
+    const origin =
+      (typeof request.headers.origin === "string" ? request.headers.origin : null) ??
+      originFromReferer(request.headers.referer);
+
+    if (!origin || !env.trustedOrigins.includes(origin)) {
+      return reply.status(403).send({ error: "FORBIDDEN", message: "Origin not allowed" });
+    }
   });
 
   await app.register(rateLimit, {
