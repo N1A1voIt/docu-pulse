@@ -31,9 +31,9 @@ STRIDE lens applied below; findings are grouped by severity.
 | F4 | **Medium** | Invite token carried in the URL query string; no `Referrer-Policy` | `app/(auth)/invites/accept/page.tsx:63` | **Partially fixed** (see 7) |
 | F5 | **Low** | `next` redirect guard is string-based, not origin-based | `app/(auth)/sign-in/page.tsx:16` | **Fixed** (see 7) |
 | F6 | **Low** | Server-supplied `signInPath` navigated without validation | `app/(auth)/invites/accept/page.tsx:40,156` | **Fixed** (see 7) |
-| F7 | **Low** | Avatar `<img src={user.image}>` — unvalidated remote URL | `components/shell/global-bar.tsx:62` |
-| F8 | **Low** | `document.cookie` sidebar write lacks `SameSite`/`Secure` | `components/ui/sidebar.tsx:85` |
-| F9 | **Info** | Server error strings rendered directly in UI | `lib/spaces.tsx`, invites/members pages |
+| F7 | **Low** | Avatar `<img src={user.image}>` — unvalidated remote URL | `components/shell/global-bar.tsx:62` | **Fixed** (see 7) |
+| F8 | **Low** | `document.cookie` sidebar write lacks `SameSite`/`Secure` | `components/ui/sidebar.tsx:85` | **Fixed** (see 7) |
+| F9 | **Info** | Server error strings rendered directly in UI | `lib/spaces.tsx`, invites/members pages | **Fixed** (see 7) |
 | F10 | **Info** | No install-script policy; no `middleware.ts` for nonces | repo root |
 | F11 | **High** | No lockfile tracked anywhere — installs are non-reproducible | root `.gitignore` | **Fixed** (see 7) |
 
@@ -257,12 +257,46 @@ unexpected remote URL (privacy/tracking, mixed content, and it widens the CSP
 `img-src` we must allow in F1). Validate/persist avatar URLs as `https:` only at
 ingest (backend), and render with `referrerPolicy="no-referrer"`.
 
+> **Resolved (2026-10-16):** fixed on both sides, defence in depth.
+> - **Frontend render.** New `frontend/lib/safe-image-url.ts`
+>   (`safeImageUrl`) accepts only an absolute `https:` URL and returns `null`
+>   otherwise (`data:`/`blob:`/`javascript:`, protocol-relative, relative, or
+>   garbage). `components/shell/global-bar.tsx` renders the validated URL and
+>   adds `referrerPolicy="no-referrer"`, falling back to the initial-letter
+>   avatar when the value is rejected. Covered by
+>   `frontend/lib/safe-image-url.test.ts` (13 cases).
+> - **Backend ingest.** The displayed avatar is the **Better Auth session's**
+>   `user.image` (auth schema), not our public `users.avatar_url`, so the guard
+>   had to sit on Better Auth's persistence. New
+>   `backend/src/auth/avatar-url.ts` (`sanitizeAvatarUrl`) and a
+>   `databaseHooks.user.create.before` + `update.before` in
+>   `backend/src/auth/auth.ts` now persist https-only avatars. The
+>   `update.before` hook is a no-op when the update carries no `image` key, so an
+>   unrelated profile change cannot wipe a stored avatar. The existing
+>   `create.after` write to `users.avatar_url` therefore stores the already
+>   sanitised value. Covered by `backend/tests/avatar-url.test.ts` (7 cases).
+> - **Residual:** the app CSP `img-src` allowlist (F1) remains the enforced
+>   control for *which hosts* may load; the scheme check above is the portable
+>   guard for non-CSP consumers (email, other clients). Tightening the CSP to
+>   drop `data:`/`blob:` from `img-src` was not done — Next/React may rely on
+>   them — so keep that in mind if a future sink renders a raw `data:` URL.
+
 ### F8 — Low: sidebar cookie lacks `SameSite`/`Secure`
 
 `components/ui/sidebar.tsx:85` writes `sidebar_state` via `document.cookie`
 without `SameSite` or `Secure`. It is non-sensitive UI state (not auth), so this
 is hygiene rather than a vuln — but it is the kind of pattern that gets copied
 onto a real cookie later. Add `; SameSite=Lax` (and `Secure` in prod).
+
+> **Resolved (2026-10-16):** the hand-rolled cookie string is gone. New
+> `frontend/lib/cookies.ts` (`serializeCookie`) emits `Path`, optional
+> `Max-Age`, `SameSite` (default `Lax`), `Secure` when asked, and `HttpOnly`
+> (harmless no-op client-side), percent-encodes the value, and rejects a cookie
+> name containing separators/whitespace so it cannot inject extra attributes.
+> `components/ui/sidebar.tsx` now writes `sidebar_state` through it with
+> `secure: window.location.protocol === "https:"`, so `Secure` is applied over
+> HTTPS and omitted in local http dev (where a `Secure` cookie would be
+> dropped). Covered by `frontend/lib/cookies.test.ts` (5 cases).
 
 ### F9 — Info: server error strings rendered directly
 
@@ -272,6 +306,20 @@ from the API. React escapes them, so this is not XSS; it is an
 information-disclosure concern. Rule: the API must keep user-facing `message`
 generic and log internals server-side only. Confirm backend error bodies never
 carry stack traces/SQL text.
+
+> **Resolved (2026-10-16):** the leak was server-side. `backend/src/server.ts`
+> returned `err.message` for **any** unexpected error, so a `pg` failure
+> (`relation "users" does not exist …`) or a `createTeamOrganization` throw
+> (`Unknown plan: …`) was echoed to the client and rendered. New
+> `backend/src/http/public-error.ts` (`toPublicError`) passes only our own typed
+> `InvitationError` through (its `code`/`message`/`extra` are authored
+> constants) and maps everything else to a generic
+> `500 { error: "INTERNAL_ERROR", message: "Something went wrong" }`. The
+> caller logs the real error server-side and — deliberately — never includes the
+> request URL, since invite tokens travel in the path (F4). Covered by
+> `backend/tests/public-error.test.ts` (4 cases). The frontend already escaped
+> these strings via React, so it needed no change; the client-constructed
+> `Failed to load … (status)` strings carry no server internals.
 
 ### F10 — Info: install-script policy and header plumbing
 
@@ -346,7 +394,7 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 3. **F3** move `shadcn` to devDependencies — **DONE** (production graph clean); dev-only advisories deferred (see §7).
 4. **F11** track lockfiles + frozen-install CI — **DONE** (see §7). Install-script policy (F10) remains.
 5. **F5/F6** extract and apply one redirect-safety helper — **DONE** (`lib/safe-redirect.ts`; see §7).
-6. **F7/F8/F9** hardening hygiene + backend error-body review.
+6. **F7/F8/F9** hardening hygiene + backend error-body review — **DONE** (avatar URL validation + ingest guard, `serializeCookie`, `toPublicError`; see §7).
 
 ## 6. Review checklist status (`security-and-hardening` §Verification, frontend half)
 
@@ -360,7 +408,7 @@ recorded as a proposal rather than applied on this frontend branch — see §7.
 - [x] Dependency audit has no unmitigated reachable critical/high — **met for the production graph, both packages (`--omit=dev` = 0)**; remaining dev-only advisories are deferred with rationale (F3)
 - [x] The authoritative lockfile is committed and CI installs frozen — **met** (F11: lockfiles committed + `.github/workflows/ci.yml` runs `npm ci`)
 - [x] Client-side redirect targets are origin-validated before `router.push`/`router.replace` — **met** (F5/F6: `safeRedirectPath`, covered by `frontend/lib/safe-redirect.test.ts`; CI runs `npm test`)
-- [ ] Error responses don't expose internals — **client ok; confirm API bodies (F9)**
+- [x] Error responses don't expose internals — **met** (F9: `toPublicError` passes only our authored `InvitationError` through and returns a generic `500` body otherwise, logging the real error server-side; covered by `backend/tests/public-error.test.ts`)
 
 ## 7. Remediation log
 
@@ -572,6 +620,51 @@ updated with **npm 11** because npm 10.9.x hit an arborist crash
 vitest's optional-peer graph; the result stays `lockfileVersion: 3` and a
 frozen `npm ci` was re-verified with npm 10 to confirm CI compatibility. No new
 production dependency and `npm audit --omit=dev` remains **0**.
+
+### 2026-10-16 — F7 + F8 + F9 (avatar URL, sidebar cookie, error bodies)
+
+The last three standing findings, each fixed at the layer that owns the
+boundary, with a small pure helper so the rule is unit-testable without a DB or
+a browser.
+
+**F7 — avatar URL.**
+- The rendered avatar comes from the **Better Auth session** (`user.image`, auth
+  schema) via `authClient.getSession()`, *not* our public `users.avatar_url`, so
+  a UI-only guard would have missed the persistence path. Fixed on both sides:
+  - `frontend/lib/safe-image-url.ts` — `safeImageUrl` accepts only an absolute
+    `https:` URL, else `null`. `global-bar.tsx` renders it with
+    `referrerPolicy="no-referrer"` and falls back to the initial avatar.
+  - `backend/src/auth/avatar-url.ts` — `sanitizeAvatarUrl` (https-only) wired
+    into `databaseHooks.user.create.before` **and** `update.before`
+    (`backend/src/auth/auth.ts`). `sanitizedImageUpdate` returns `undefined`
+    when the payload has no `image` key, so an unrelated update cannot wipe a
+    stored avatar — the subtle failure mode this guard had to avoid.
+- Tests: `frontend/lib/safe-image-url.test.ts` (13), `backend/tests/avatar-url.test.ts` (7).
+
+**F8 — sidebar cookie.** `frontend/lib/cookies.ts` (`serializeCookie`) emits
+`SameSite` (default `Lax`), `Secure` when asked, `Path`, optional `Max-Age`, and
+rejects a name that could inject attributes; `components/ui/sidebar.tsx` writes
+`sidebar_state` through it with `secure: window.location.protocol === "https:"`
+(so dev http keeps the cookie; https gets `Secure`).
+Test: `frontend/lib/cookies.test.ts` (5).
+
+**F9 — error bodies.** `backend/src/http/public-error.ts` (`toPublicError`)
+passes our authored `InvitationError` through and maps anything else to a
+generic `500 { error: "INTERNAL_ERROR", message: "Something went wrong" }`;
+`server.ts` logs the real error server-side (no request URL — the invite token
+lives in the path, F4). This removes the `err.message` echo that could surface
+`pg` SQL text or `Unknown plan: …`. Test: `backend/tests/public-error.test.ts` (4).
+
+**Verification performed:**
+- Backend: `npm run typecheck` clean; full suite **15 files / 71 tests** pass
+  (was 13 / 60 — +2 files / +11 tests).
+- Frontend: `npm test` **3 files / 37 tests** pass (was 1 / 19); `npm run lint`
+  clean; `npm run build` succeeds (11 routes, same route table).
+- Not verified end-to-end: the Better Auth `create.before`/`update.before` hooks
+  firing under a live OAuth sign-up (requires provider credentials). The hooks
+  are typed against the installed `@better-auth/core` `databaseHooks` signature
+  and the guard function is unit-tested; a live social-sign-in smoke test is the
+  remaining gap.
 
 ## 8. Decision recorded (2026-10-16)
 
