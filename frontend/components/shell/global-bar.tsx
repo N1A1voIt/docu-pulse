@@ -5,6 +5,7 @@ import { LogOutIcon } from "@hugeicons/core-free-icons";
 
 import { authClient } from "@/lib/auth-client";
 import { useActiveSpace, useSpaces } from "@/lib/spaces";
+import { safeImageUrl } from "@/lib/safe-image-url";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -51,6 +52,12 @@ function AvatarMenu() {
   const displayName = user?.name ?? user?.email ?? "Account";
   const initial = displayName.trim().charAt(0).toUpperCase();
 
+  // The provider-supplied avatar is untrusted; only render an absolute https
+  // URL, otherwise fall back to the initial. `referrerPolicy="no-referrer"`
+  // stops the URL (and any query token the provider put in it) leaking to the
+  // image host (F7).
+  const avatarUrl = safeImageUrl(user?.image);
+
   async function handleSignOut() {
     await authClient.signOut();
     window.location.replace("/sign-in");
@@ -59,13 +66,14 @@ function AvatarMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none ring-ring focus-visible:ring-2">
-        {user?.image ? (
+        {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={user.image}
+            src={avatarUrl}
             alt=""
             width={32}
             height={32}
+            referrerPolicy="no-referrer"
             className="size-8 rounded-full object-cover ring-1 ring-foreground/10"
           />
         ) : (
